@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../AuthContext';
 import { 
   Shield, 
   Search, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 const Home: React.FC = () => {
+  const { user } = useAuth();
   const features = [
     {
       icon: Search,
@@ -113,26 +115,55 @@ const Home: React.FC = () => {
               transition={{ delay: 0.3, duration: 0.8 }}
               className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
             >
-              <Link to="/scan">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="btn-primary text-lg px-8 py-4 flex items-center space-x-2"
-                >
-                  <Search className="w-5 h-5" />
-                  <span>Scan URL Now</span>
-                </motion.button>
-              </Link>
-              <Link to="/dashboard">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="btn-secondary text-lg px-8 py-4 flex items-center space-x-2"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  <span>View Dashboard</span>
-                </motion.button>
-              </Link>
+              {user ? (
+                // Show authenticated user actions
+                <>
+                  <Link to="/scan">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="btn-primary text-lg px-8 py-4 flex items-center space-x-2"
+                    >
+                      <Search className="w-5 h-5" />
+                      <span>Scan URL Now</span>
+                    </motion.button>
+                  </Link>
+                  <Link to="/dashboard">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="btn-secondary text-lg px-8 py-4 flex items-center space-x-2"
+                    >
+                      <BarChart3 className="w-5 h-5" />
+                      <span>View Dashboard</span>
+                    </motion.button>
+                  </Link>
+                </>
+              ) : (
+                // Show unauthenticated user actions
+                <>
+                  <Link to="/auth">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="btn-primary text-lg px-8 py-4 flex items-center space-x-2"
+                    >
+                      <Shield className="w-5 h-5" />
+                      <span>Get Started</span>
+                    </motion.button>
+                  </Link>
+                  <Link to="/auth">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="btn-secondary text-lg px-8 py-4 flex items-center space-x-2"
+                    >
+                      <BarChart3 className="w-5 h-5" />
+                      <span>Learn More</span>
+                    </motion.button>
+                  </Link>
+                </>
+              )}
             </motion.div>
 
             {/* Stats */}
@@ -336,26 +367,55 @@ const Home: React.FC = () => {
               Start scanning URLs and protecting yourself today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/scan">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-white text-primary-600 hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
-                >
-                  <Zap className="w-5 h-5" />
-                  <span>Start Scanning</span>
-                </motion.button>
-              </Link>
-              <Link to="/analytics">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="border-2 border-white text-white hover:bg-white hover:text-primary-600 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
-                >
-                  <TrendingUp className="w-5 h-5" />
-                  <span>View Analytics</span>
-                </motion.button>
-              </Link>
+              {user ? (
+                // Show authenticated user actions
+                <>
+                  <Link to="/scan">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-white text-primary-600 hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <Zap className="w-5 h-5" />
+                      <span>Start Scanning</span>
+                    </motion.button>
+                  </Link>
+                  <Link to="/analytics">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="border-2 border-white text-white hover:bg-white hover:text-primary-600 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <TrendingUp className="w-5 h-5" />
+                      <span>View Analytics</span>
+                    </motion.button>
+                  </Link>
+                </>
+              ) : (
+                // Show unauthenticated user actions
+                <>
+                  <Link to="/auth">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-white text-primary-600 hover:bg-gray-100 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <Shield className="w-5 h-5" />
+                      <span>Sign In to Get Started</span>
+                    </motion.button>
+                  </Link>
+                  <Link to="/auth">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="border-2 border-white text-white hover:bg-white hover:text-primary-600 font-medium py-3 px-8 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Learn More</span>
+                    </motion.button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         </div>

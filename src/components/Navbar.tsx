@@ -7,7 +7,6 @@ import { auth } from '../firebase';
 import { 
   Menu, 
   X, 
-  Home, 
   Search, 
   BarChart3, 
   User, 
@@ -32,7 +31,6 @@ const Navbar: React.FC = () => {
   };
 
   const navItems = [
-    { path: '/', label: 'Home', icon: Home },
     { path: '/scan', label: 'Scan URL', icon: Search },
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
@@ -56,7 +54,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/dashboard" className="flex items-center space-x-2">
             <motion.div
               whileHover={{ scale: 1.05 }}
               className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center"
