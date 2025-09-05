@@ -259,6 +259,55 @@ class ApiService {
       return { success: false, error: 'Failed to fetch threat reports' };
     }
   }
+
+  // Get notification preferences
+  async getNotificationPreferences(user: User): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/preferences`, {
+        headers: { 'Authorization': createAuthHeader(user) }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Get notification preferences error:', error);
+      return { success: false, error: 'Failed to fetch notification preferences' };
+    }
+  }
+
+  // Update notification preferences
+  async updateNotificationPreferences(user: User, preferences: any): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': createAuthHeader(user)
+        },
+        body: JSON.stringify(preferences)
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Update notification preferences error:', error);
+      return { success: false, error: 'Failed to update notification preferences' };
+    }
+  }
+
+  // Test notification
+  async testNotification(user: User, type: string, message: string): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/notifications/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': createAuthHeader(user)
+        },
+        body: JSON.stringify({ type, message })
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Test notification error:', error);
+      return { success: false, error: 'Failed to send test notification' };
+    }
+  }
 }
 
 export default new ApiService();

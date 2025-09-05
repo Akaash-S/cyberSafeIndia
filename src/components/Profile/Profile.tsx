@@ -43,16 +43,19 @@ const Profile: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);  
+  const [isLoading, setIsLoading] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState({
+    email: true,
+    push: true,
+    security: true,
+    weekly: false,
+    threatAlerts: true,
+    scanComplete: true,
+    reportUpdates: true
+  });  
   const [profileData, setProfileData] = useState({
     displayName: user?.displayName || '',
     email: user?.email || '',
@@ -105,15 +108,6 @@ const Profile: React.FC = () => {
     }));
   };
 
-  const handleNotificationChange = (key: keyof typeof profileData.notifications) => {
-    setProfileData(prev => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [key]: !prev.notifications[key]
-      }
-    }));
-  };
 
   // Load user stats
   const loadUserStats = async () => {
@@ -281,6 +275,7 @@ const Profile: React.FC = () => {
     loadRecentActivity();
     loadDevices();
     loadAchievements();
+    loadNotificationSettings();
   }, [user]);
 
   // Reload achievements when stats change
@@ -510,48 +505,6 @@ const Profile: React.FC = () => {
     return JSON.stringify(profileData, null, 2);
   };
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswordData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const changePassword = async () => {
-    if (!user) return;
-
-    // Validate passwords
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
-      return;
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // In a real app, this would call Firebase Auth to change password
-      // For now, we'll simulate the process
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      alert('Password changed successfully!');
-      setShowPasswordModal(false);
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    } catch (error) {
-      console.error('Password change error:', error);
-      alert('Failed to change password. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const copyProfileLink = () => {
     const profileLink = `${window.location.origin}/profile/${user?.uid}`;
@@ -604,6 +557,72 @@ const Profile: React.FC = () => {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  // Load notification settings
+  const loadNotificationSettings = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await apiService.getNotificationPreferences(user);
+      if (response.success && response.data) {
+        setNotificationSettings(response.data);
+      } else {
+        // Fallback to localStorage if API fails
+        const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
+        if (savedSettings) {
+          setNotificationSettings(JSON.parse(savedSettings));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading notification settings:', error);
+      // Fallback to localStorage
+      const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
+      if (savedSettings) {
+        setNotificationSettings(JSON.parse(savedSettings));
+      }
+    }
+  };
+
+  // Save notification settings
+  const saveNotificationSettings = async (newSettings: typeof notificationSettings) => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Try to save to backend API first
+      const response = await apiService.updateNotificationPreferences(user, newSettings);
+      
+      if (response.success) {
+        setNotificationSettings(newSettings);
+        console.log('Notification settings saved to backend:', newSettings);
+      } else {
+        // Fallback to localStorage if API fails
+        localStorage.setItem(`notificationSettings_${user.uid}`, JSON.stringify(newSettings));
+        setNotificationSettings(newSettings);
+        console.log('Notification settings saved to localStorage:', newSettings);
+      }
+      
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+      // Fallback to localStorage
+      localStorage.setItem(`notificationSettings_${user.uid}`, JSON.stringify(newSettings));
+      setNotificationSettings(newSettings);
+      console.log('Notification settings saved to localStorage (fallback):', newSettings);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Toggle notification setting
+  const toggleNotification = async (key: keyof typeof notificationSettings) => {
+    const newSettings = {
+      ...notificationSettings,
+      [key]: !notificationSettings[key]
+    };
+    
+    await saveNotificationSettings(newSettings);
   };
 
 
@@ -1084,14 +1103,6 @@ const Profile: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                                    <motion.button
-                      onClick={() => setShowPasswordModal(true)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="btn-secondary text-sm"
-                    >
-                      Change Password
-                    </motion.button>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -1118,7 +1129,7 @@ const Profile: React.FC = () => {
               Notifications
             </h3>
             <div className="space-y-3">
-              {Object.entries(profileData.notifications).map(([key, value]: [string, boolean]) => (
+              {Object.entries(notificationSettings).map(([key, value]: [string, boolean]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                     {key.replace(/([A-Z])/g, ' $1').trim()}
@@ -1127,10 +1138,11 @@ const Profile: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={value}
-                      onChange={() => handleNotificationChange(key as keyof typeof profileData.notifications)}
+                      onChange={() => toggleNotification(key as keyof typeof notificationSettings)}
+                      disabled={isLoading}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                    <div className={`w-11 h-6 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 ${value ? 'bg-blue-600' : 'bg-gray-200'} ${isLoading ? 'opacity-50' : ''}`}></div>
                   </label>
                 </div>
               ))}
@@ -1373,7 +1385,7 @@ const Profile: React.FC = () => {
                   Notifications
                 </h3>
                 <div className="space-y-4">
-                  {Object.entries(profileData.notifications).map(([key, value]: [string, boolean]) => (
+                  {Object.entries(notificationSettings).map(([key, value]: [string, boolean]) => (
                     <div key={key} className="flex items-center justify-between">
                       <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                         {key.replace(/([A-Z])/g, ' $1').trim()}
@@ -1382,10 +1394,11 @@ const Profile: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={value}
-                          onChange={() => handleNotificationChange(key as keyof typeof profileData.notifications)}
+                          onChange={() => toggleNotification(key as keyof typeof notificationSettings)}
+                          disabled={isLoading}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                        <div className={`w-11 h-6 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 ${value ? 'bg-blue-600' : 'bg-gray-200'} ${isLoading ? 'opacity-50' : ''}`}></div>
                       </label>
                     </div>
                   ))}
@@ -1533,97 +1546,6 @@ const Profile: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Password Change Modal */}
-      <AnimatePresence>
-        {showPasswordModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowPasswordModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Change Password
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                    className="input-field"
-                    placeholder="Enter current password"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                    className="input-field"
-                    placeholder="Enter new password"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                    className="input-field"
-                    placeholder="Confirm new password"
-                  />
-                </div>
-              </div>
-              <div className="flex space-x-3 mt-6">
-                <motion.button
-                  onClick={changePassword}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-primary flex-1 flex items-center justify-center space-x-2 disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Changing...</span>
-                    </>
-                  ) : (
-                    <span>Change Password</span>
-                  )}
-                </motion.button>
-                <motion.button
-                  onClick={() => setShowPasswordModal(false)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-secondary flex-1"
-                >
-                  Cancel
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* QR Code Modal */}
       <AnimatePresence>
