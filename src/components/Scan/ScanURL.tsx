@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2 } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2, Flag, Eye, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../../AuthContext';
 import apiService from '../../services/api';
 import type { ScanResult, ScanHistory } from '../../types/api';
+import { exportScanHistoryToExcel, type ScanHistoryExport } from '../../utils/excelExport';
 
 // Scan stage interface
 interface ScanStage {
@@ -24,6 +25,11 @@ const ScanURL: React.FC = () => {
   const [scanHistory, setScanHistory] = useState<ScanHistory[]>([]);
   const [scanStages, setScanStages] = useState<ScanStage[]>([]);
   const [currentStage, setCurrentStage] = useState<string>('');
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [threatType, setThreatType] = useState('');
+  const [severity, setSeverity] = useState('medium');
+  const [reporting, setReporting] = useState(false);
 
   // Initialize scan stages
   const initializeScanStages = (): ScanStage[] => [
@@ -32,6 +38,13 @@ const ScanURL: React.FC = () => {
       name: 'URL Validation',
       description: 'Validating URL format and structure',
       icon: <CheckCircle2 className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'reputation',
+      name: 'Community Check',
+      description: 'Checking community reputation database',
+      icon: <Shield className="w-5 h-5" />,
       status: 'pending'
     },
     {
@@ -110,32 +123,38 @@ const ScanURL: React.FC = () => {
     }
     
     updateStageStatus('validation', 'completed', 500);
-    setCurrentStage('cache');
+    setCurrentStage('reputation');
 
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
-      // Stage 2: Cache Check (simulated)
+      // Stage 2: Community Reputation Check
+      updateStageStatus('reputation', 'in_progress');
+      await new Promise(resolve => setTimeout(resolve, 400));
+      updateStageStatus('reputation', 'completed', 400);
+      setCurrentStage('cache');
+
+      // Stage 3: Cache Check (simulated)
       updateStageStatus('cache', 'in_progress');
       await new Promise(resolve => setTimeout(resolve, 300));
       updateStageStatus('cache', 'completed', 300);
       setCurrentStage('virustotal');
 
-      // Stage 3: VirusTotal Analysis
+      // Stage 4: VirusTotal Analysis
       updateStageStatus('virustotal', 'in_progress');
       await new Promise(resolve => setTimeout(resolve, 1000));
       updateStageStatus('virustotal', 'completed', 1000);
       setCurrentStage('abuseipdb');
 
-      // Stage 4: AbuseIPDB Check
+      // Stage 5: AbuseIPDB Check
       updateStageStatus('abuseipdb', 'in_progress');
       await new Promise(resolve => setTimeout(resolve, 800));
       updateStageStatus('abuseipdb', 'completed', 800);
       setCurrentStage('analysis');
 
-      // Stage 5: Final Analysis
+      // Stage 6: Final Analysis
       updateStageStatus('analysis', 'in_progress');
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -229,6 +248,72 @@ const ScanURL: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const exportToExcel = () => {
+    if (!result) return;
+    
+    const scanData: ScanHistoryExport[] = [{
+      url: result.url,
+      status: result.status,
+      confidence: result.confidence,
+      scanDate: result.scanDate,
+      domain: result.url ? new URL(result.url).hostname : '',
+      threatType: result.details?.community?.threatType || '',
+      severity: result.details?.community?.severity || ''
+    }];
+    
+    exportScanHistoryToExcel(scanData, `scan-result-${Date.now()}.xlsx`);
+  };
+
+  const handleOpenUrl = () => {
+    if (!result) return;
+    window.open(result.url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleReportUrl = async () => {
+    if (!result || !user || !threatType) return;
+
+    setReporting(true);
+    try {
+      // Report as threat using the reputation API
+      const response = await fetch('http://localhost:5000/api/reputation/report-threat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${btoa(JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            admin: false
+          }))}`
+        },
+        body: JSON.stringify({
+          url: result.url,
+          threatType: threatType,
+          severity: severity
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setShowReportModal(false);
+        setReportReason('');
+        setThreatType('');
+        setSeverity('medium');
+        // Show success message
+        alert('Threat report submitted successfully! Thank you for helping keep the community safe.');
+      } else {
+        alert('Failed to submit threat report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Report error:', error);
+      alert('An error occurred while submitting the threat report.');
+    } finally {
+      setReporting(false);
+    }
   };
 
   // Scan stages display component
@@ -447,10 +532,29 @@ const ScanURL: React.FC = () => {
               </h2>
               <div className="flex space-x-2">
                 <motion.button
+                  onClick={handleOpenUrl}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  title="Open URL in browser"
+                >
+                  <Eye className="w-5 h-5" />
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowReportModal(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                  title="Report this URL"
+                >
+                  <Flag className="w-5 h-5" />
+                </motion.button>
+                <motion.button
                   onClick={() => copyToClipboard(result.url)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  title="Copy URL"
                 >
                   <Copy className="w-5 h-5" />
                 </motion.button>
@@ -459,8 +563,18 @@ const ScanURL: React.FC = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  title="Download JSON report"
                 >
                   <Download className="w-5 h-5" />
+                </motion.button>
+                <motion.button
+                  onClick={exportToExcel}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                  title="Export to Excel"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
                 </motion.button>
               </div>
             </div>
@@ -488,6 +602,39 @@ const ScanURL: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Community Reputation */}
+              {result.details.community && (
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <h3 className="font-medium text-gray-900 dark:text-white">
+                      Community Reputation
+                    </h3>
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                      {result.details.community.source}
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">Status:</span> {result.details.community.reputation}
+                    </p>
+                    {result.details.community.threatType && (
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Threat Type:</span> {result.details.community.threatType}
+                      </p>
+                    )}
+                    {result.details.community.severity && (
+                      <p className="text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Severity:</span> {result.details.community.severity}
+                      </p>
+                    )}
+                    <p className="text-gray-600 dark:text-gray-400">
+                      <span className="font-medium">Reports:</span> {result.details.community.reportCount || 0}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -580,6 +727,112 @@ const ScanURL: React.FC = () => {
           </div>
         </motion.div>
       )}
+
+      {/* Report Modal */}
+      <AnimatePresence>
+        {showReportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowReportModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Report URL
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Help protect other users by reporting this URL if you believe it's malicious or suspicious.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Threat Type *
+                  </label>
+                  <select
+                    value={threatType}
+                    onChange={(e) => setThreatType(e.target.value)}
+                    className="w-full input-field"
+                    required
+                  >
+                    <option value="">Select threat type...</option>
+                    <option value="malware">Malware</option>
+                    <option value="phishing">Phishing</option>
+                    <option value="suspicious">Suspicious</option>
+                    <option value="spam">Spam</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Severity Level
+                  </label>
+                  <select
+                    value={severity}
+                    onChange={(e) => setSeverity(e.target.value)}
+                    className="w-full input-field"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Additional Details (Optional)
+                  </label>
+                  <textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Provide additional details about the threat..."
+                    className="w-full input-field"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <motion.button
+                    onClick={() => setShowReportModal(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    Cancel
+                  </motion.button>
+                  <motion.button
+                    onClick={handleReportUrl}
+                    disabled={!threatType || reporting}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {reporting ? (
+                      <>
+                        <div className="loading-spinner w-4 h-4"></div>
+                        <span>Reporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Flag className="w-4 h-4" />
+                        <span>Report URL</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

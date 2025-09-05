@@ -96,6 +96,28 @@ class ApiService {
     }
   }
 
+  // Report URL (alias for submitReport)
+  async reportUrl(url: string, reason: string, user: User): Promise<ApiResponse> {
+    return this.submitReport(url, reason, user);
+  }
+
+  // Check URL reputation
+  async checkUrlReputation(url: string): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reputation/check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url })
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Check URL reputation error:', error);
+      return { success: false, error: 'Failed to check URL reputation' };
+    }
+  }
+
   // Get analytics overview
   async getAnalyticsOverview(user: User): Promise<ApiResponse> {
     try {
@@ -196,6 +218,45 @@ class ApiService {
     } catch (error) {
       console.error('Export scan history error:', error);
       return null;
+    }
+  }
+
+  // Get reputation analytics
+  async getReputationAnalytics(user: User): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/analytics/reputation`, {
+        headers: { 'Authorization': createAuthHeader(user) }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Get reputation analytics error:', error);
+      return { success: false, error: 'Failed to fetch reputation analytics' };
+    }
+  }
+
+  // Get threat reports analytics
+  async getThreatReportsAnalytics(user: User): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/analytics`, {
+        headers: { 'Authorization': createAuthHeader(user) }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Get threat reports analytics error:', error);
+      return { success: false, error: 'Failed to fetch threat reports analytics' };
+    }
+  }
+
+  // Get user's threat reports for export
+  async getUserThreatReports(user: User): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reports/my`, {
+        headers: { 'Authorization': createAuthHeader(user) }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Get user threat reports error:', error);
+      return { success: false, error: 'Failed to fetch threat reports' };
     }
   }
 }

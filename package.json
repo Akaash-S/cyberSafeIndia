@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/xlsx": "^0.0.35",
     "autoprefixer": "^10.4.21",
     "axios": "^1.11.0",
     "firebase": "^12.2.1",
@@ -21,7 +22,8 @@
     "react-dom": "^19.1.1",
     "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^7.8.2",
-    "recharts": "^3.1.2"
+    "recharts": "^3.1.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

@@ -31,8 +31,8 @@ const Navbar: React.FC = () => {
   };
 
   const navItems = [
-    { path: '/scan', label: 'Scan URL', icon: Search },
     { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+    { path: '/scan', label: 'Scan URL', icon: Search },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
     { path: '/profile', label: 'Profile', icon: User },
   ];
