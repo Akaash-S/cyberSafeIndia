@@ -38,9 +38,9 @@ export const useAuth = () => {
 const createAuthHeader = (user: User): string => {
   const userData = {
     uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
+    email: user.email || '',
+    displayName: typeof user.displayName === 'string' ? user.displayName : '',
+    photoURL: typeof user.photoURL === 'string' ? user.photoURL : '',
     admin: false // This will be updated after backend registration
   };
   
@@ -49,15 +49,26 @@ const createAuthHeader = (user: User): string => {
 };
 
 // Register user with backend
+// Ensures all fields are properly validated and formatted before sending to backend
 const registerUserWithBackend = async (firebaseUser: User): Promise<BackendUserData | null> => {
   try {
+    // Ensure all fields are properly formatted before sending to backend
     const userData = {
       uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL,
+      email: firebaseUser.email || '',
+      displayName: typeof firebaseUser.displayName === 'string' ? firebaseUser.displayName : '',
+      photoURL: typeof firebaseUser.photoURL === 'string' && firebaseUser.photoURL ? firebaseUser.photoURL : '',
       admin: false
     };
+
+    // Validate required fields
+    if (!userData.uid || !userData.email) {
+      console.error('Invalid user data - missing required fields:', { uid: userData.uid, email: userData.email });
+      return null;
+    }
+
+    // Log the full request payload for debugging
+    console.log('Registering user with backend');
 
     const response = await fetch('http://localhost:5000/api/user/register', {
       method: 'POST',
@@ -70,9 +81,11 @@ const registerUserWithBackend = async (firebaseUser: User): Promise<BackendUserD
     const result = await response.json();
     
     if (result.success) {
+      console.log('User successfully registered with backend!');
       return result.data;
     } else {
       console.error('Backend registration failed:', result.error);
+      console.error('Request payload was:', userData);
       return null;
     }
   } catch (error) {

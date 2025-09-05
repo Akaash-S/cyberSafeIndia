@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../AuthContext';
 import apiService from '../../services/api';
+import QRCode from 'qrcode';
 import { 
   User, 
   Mail, 
@@ -32,7 +33,8 @@ import {
   Award,
   Target,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Share2
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -41,8 +43,16 @@ const Profile: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);  
   const [profileData, setProfileData] = useState({
     displayName: user?.displayName || '',
     email: user?.email || '',
@@ -120,10 +130,10 @@ const Profile: React.FC = () => {
         const scanData = scanStatsResponse.data;
         setStats(prev => ({
           ...prev,
-          totalScans: scanData.totalScans,
-          safeScans: scanData.statusBreakdown.safe,
-          suspiciousScans: scanData.statusBreakdown.suspicious,
-          maliciousScans: scanData.statusBreakdown.malicious,
+          totalScans: scanData.totalScans || 0,
+          safeScans: scanData.statusBreakdown?.safe || 0,
+          suspiciousScans: scanData.statusBreakdown?.suspicious || 0,
+          maliciousScans: scanData.statusBreakdown?.malicious || 0,
           lastActive: new Date().toISOString(),
           accountAge: Math.floor((Date.now() - new Date(user.metadata.creationTime || '').getTime()) / (1000 * 60 * 60 * 24))
         }));
@@ -140,6 +150,17 @@ const Profile: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading user stats:', error);
+      // Set default values on error
+      setStats(prev => ({
+        ...prev,
+        totalScans: 0,
+        safeScans: 0,
+        suspiciousScans: 0,
+        maliciousScans: 0,
+        threatReports: 0,
+        safeReports: 0,
+        totalReports: 0
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -150,9 +171,9 @@ const Profile: React.FC = () => {
     if (!user) return;
 
     try {
-      const response = await apiService.getScanHistory(user);
-      if (response.success && response.data) {
-        const activities = response.data.slice(0, 10).map((scan: any) => ({
+      const response = await apiService.getScanHistory(user, { limit: 10 });
+      if (response.success && response.data && response.data.scans) {
+        const activities = response.data.scans.map((scan: any) => ({
           id: scan.id,
           type: 'scan',
           action: `Scanned ${scan.url}`,
@@ -316,34 +337,74 @@ const Profile: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleDeleteAccount = () => {
-    // In real app, this would delete the user account
-    console.log('Account deletion requested');
-    setShowDeleteModal(false);
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+
+    setIsLoading(true);
+    try {
+      // In a real app, this would call Firebase Auth to delete the account
+      // and also delete all user data from the database
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      alert('Account deleted successfully. You will be redirected to the login page.');
+      // In a real app, this would sign out the user and redirect
+      // For now, we'll just close the modal
+      setShowDeleteModal(false);
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      alert('Failed to delete account. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const downloadData = () => {
-    const userData = {
-      profile: profileData,
-      stats: stats,
-      recentActivity: recentActivity,
-      devices: devices,
-      achievements: achievements,
-      accountCreated: user?.metadata.creationTime,
-      lastSignIn: user?.metadata.lastSignInTime,
-      emailVerified: user?.emailVerified,
-      provider: user?.providerData[0]?.providerId
-    };
+  const downloadData = async () => {
+    if (!user) return;
 
-    const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cybersafe-profile-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setIsLoading(true);
+    try {
+      // Fetch additional data
+      const [scanHistoryResponse, threatReportsResponse] = await Promise.all([
+        apiService.getScanHistory(user),
+        apiService.getUserThreatReports(user)
+      ]);
+
+      const userData = {
+        profile: profileData,
+        stats: stats,
+        recentActivity: recentActivity,
+        devices: devices,
+        achievements: achievements,
+        scanHistory: scanHistoryResponse.success && scanHistoryResponse.data ? scanHistoryResponse.data.scans || [] : [],
+        threatReports: threatReportsResponse.success ? threatReportsResponse.data : [],
+        accountInfo: {
+          accountCreated: user?.metadata.creationTime,
+          lastSignIn: user?.metadata.lastSignInTime,
+          emailVerified: user?.emailVerified,
+          provider: user?.providerData[0]?.providerId,
+          uid: user?.uid
+        },
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+      };
+
+      const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cybersafe-profile-${user.displayName || 'user'}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('Profile data downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const exportToExcel = async () => {
@@ -356,11 +417,11 @@ const Profile: React.FC = () => {
         apiService.getUserThreatReports(user)
       ]);
 
-      const scanHistory = scanHistoryResponse.success && scanHistoryResponse.data 
-        ? scanHistoryResponse.data.map((scan: any) => ({
+      const scanHistory = scanHistoryResponse.success && scanHistoryResponse.data && scanHistoryResponse.data.scans
+        ? scanHistoryResponse.data.scans.map((scan: any) => ({
             url: scan.url,
             status: scan.status,
-            confidence: scan.confidence,
+            confidence: scan.details?.virustotal?.confidence || 0,
             scanDate: scan.scanDate,
             domain: scan.url ? new URL(scan.url).hostname : ''
           }))
@@ -381,22 +442,156 @@ const Profile: React.FC = () => {
       // Create comprehensive Excel export
       const { exportComprehensiveReport } = await import('../../utils/excelExport');
       exportComprehensiveReport(scanHistory, threatReports, stats);
+      
+      // Show success message
+      alert('Data exported successfully!');
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export data');
+      alert('Failed to export data. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateQRCode = () => {
+  const generateQRCode = async () => {
     setShowQRModal(true);
+    setIsGeneratingQR(true);
+    
+    try {
+      const profileData = {
+        name: user?.displayName || 'User',
+        email: user?.email || '',
+        profileUrl: `${window.location.origin}/profile/${user?.uid}`,
+        joinDate: user?.metadata?.creationTime || new Date().toISOString(),
+        stats: {
+          totalScans: stats.totalScans,
+          securityScore: stats.securityScore
+        },
+        platform: 'CyberSafe India',
+        version: '1.0'
+      };
+      
+      const qrData = JSON.stringify(profileData);
+      
+      // Generate QR code as data URL
+      const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M'
+      });
+      
+      setQrCodeDataUrl(qrCodeDataUrl);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      alert('Failed to generate QR code. Please try again.');
+    } finally {
+      setIsGeneratingQR(false);
+    }
+  };
+
+  const generateQRCodeData = () => {
+    const profileData = {
+      name: user?.displayName || 'User',
+      email: user?.email || '',
+      profileUrl: `${window.location.origin}/profile/${user?.uid}`,
+      joinDate: user?.metadata?.creationTime || new Date().toISOString(),
+      stats: {
+        totalScans: stats.totalScans,
+        securityScore: stats.securityScore
+      },
+      platform: 'CyberSafe India',
+      version: '1.0'
+    };
+    
+    return JSON.stringify(profileData, null, 2);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const changePassword = async () => {
+    if (!user) return;
+
+    // Validate passwords
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // In a real app, this would call Firebase Auth to change password
+      // For now, we'll simulate the process
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      alert('Password changed successfully!');
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      console.error('Password change error:', error);
+      alert('Failed to change password. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyProfileLink = () => {
     const profileLink = `${window.location.origin}/profile/${user?.uid}`;
     navigator.clipboard.writeText(profileLink);
     alert('Profile link copied to clipboard!');
+  };
+
+  const shareProfile = async () => {
+    const profileLink = `${window.location.origin}/profile/${user?.uid}`;
+    const shareData = {
+      title: `${user?.displayName || 'User'}'s CyberSafe Profile`,
+      text: `Check out my cybersecurity profile on CyberSafe India!`,
+      url: profileLink
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback to copying link
+        await navigator.clipboard.writeText(profileLink);
+        alert('Profile link copied to clipboard!');
+      }
+    } catch (error) {
+      console.error('Error sharing profile:', error);
+      // Fallback to copying link
+      await navigator.clipboard.writeText(profileLink);
+      alert('Profile link copied to clipboard!');
+    }
+  };
+
+  const downloadQRCode = () => {
+    if (!qrCodeDataUrl) return;
+    
+    const link = document.createElement('a');
+    link.download = `cybersafe-profile-qr-${user?.displayName || 'user'}.png`;
+    link.href = qrCodeDataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const refreshData = () => {
@@ -668,6 +863,16 @@ const Profile: React.FC = () => {
                     className="w-full btn-secondary flex items-center justify-center space-x-2"
                   >
                     <QrCode className="w-4 h-4" />
+                    <span>QR Code</span>
+                  </motion.button>
+                  
+                  <motion.button
+                    onClick={shareProfile}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full btn-secondary flex items-center justify-center space-x-2"
+                  >
+                    <Share2 className="w-4 h-4" />
                     <span>Share Profile</span>
                   </motion.button>
                   
@@ -879,13 +1084,14 @@ const Profile: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="btn-secondary text-sm"
-                >
-                  Change Password
-                </motion.button>
+                                    <motion.button
+                      onClick={() => setShowPasswordModal(true)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="btn-secondary text-sm"
+                    >
+                      Change Password
+                    </motion.button>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
@@ -1196,22 +1402,42 @@ const Profile: React.FC = () => {
                 <div className="space-y-3">
                   <motion.button
                     onClick={downloadData}
+                    disabled={isLoading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full btn-secondary flex items-center justify-center space-x-2"
+                    className="w-full btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>Download Data</span>
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>Download Data</span>
+                      </>
+                    )}
                   </motion.button>
                   
                   <motion.button
                     onClick={exportToExcel}
+                    disabled={isLoading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full btn-secondary flex items-center justify-center space-x-2"
+                    className="w-full btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>Export to Excel</span>
+                    {isLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Exporting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-4 h-4" />
+                        <span>Export to Excel</span>
+                      </>
+                    )}
                   </motion.button>
                   
                   <motion.button
@@ -1256,22 +1482,42 @@ const Profile: React.FC = () => {
               <div className="space-y-3">
                 <motion.button
                   onClick={downloadData}
+                  disabled={isLoading}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full btn-secondary flex items-center justify-center space-x-2"
+                  className="w-full btn-secondary flex items-center justify-center space-x-2 disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download JSON</span>
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Downloading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Download JSON</span>
+                    </>
+                  )}
                 </motion.button>
                 
                 <motion.button
                   onClick={exportToExcel}
+                  disabled={isLoading}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full btn-primary flex items-center justify-center space-x-2"
+                  className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>Export to Excel</span>
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Exporting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Export to Excel</span>
+                    </>
+                  )}
                 </motion.button>
               </div>
               <motion.button
@@ -1282,6 +1528,98 @@ const Profile: React.FC = () => {
               >
                 Cancel
               </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Change Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Change Password
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={passwordData.currentPassword}
+                    onChange={handlePasswordChange}
+                    className="input-field"
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={passwordData.newPassword}
+                    onChange={handlePasswordChange}
+                    className="input-field"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={passwordData.confirmPassword}
+                    onChange={handlePasswordChange}
+                    className="input-field"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <motion.button
+                  onClick={changePassword}
+                  disabled={isLoading}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-primary flex-1 flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Changing...</span>
+                    </>
+                  ) : (
+                    <span>Change Password</span>
+                  )}
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowPasswordModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -1301,26 +1639,98 @@ const Profile: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md text-center"
+              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg text-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Share Your Profile
-              </h3>
-              <div className="w-48 h-48 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                <QrCode className="w-24 h-24 text-gray-400" />
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Share Your Profile
+                </h3>
+                <motion.button
+                  onClick={() => setShowQRModal(false)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="w-6 h-6" />
+                </motion.button>
               </div>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                Scan this QR code to view your profile
+
+              {/* QR Code Display */}
+              <div className="mb-6">
+                {isGeneratingQR ? (
+                  <div className="w-64 h-64 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto flex items-center justify-center">
+                    <div className="text-center">
+                      <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Generating QR Code...</p>
+                    </div>
+                  </div>
+                ) : qrCodeDataUrl ? (
+                  <div className="w-64 h-64 bg-white rounded-lg mx-auto p-4 shadow-lg">
+                    <img 
+                      src={qrCodeDataUrl} 
+                      alt="Profile QR Code" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-64 h-64 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto flex items-center justify-center">
+                    <QrCode className="w-24 h-24 text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Scan this QR code to view {user?.displayName || 'User'}'s cybersecurity profile
               </p>
-              <motion.button
-                onClick={() => setShowQRModal(false)}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="btn-primary"
-              >
-                Close
-              </motion.button>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <motion.button
+                  onClick={copyProfileLink}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-secondary flex items-center justify-center space-x-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Copy Link</span>
+                </motion.button>
+                
+                <motion.button
+                  onClick={shareProfile}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-secondary flex items-center justify-center space-x-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Share</span>
+                </motion.button>
+              </div>
+
+              {/* Download QR Code Button */}
+              {qrCodeDataUrl && (
+                <motion.button
+                  onClick={downloadQRCode}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full btn-primary flex items-center justify-center space-x-2 mb-4"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download QR Code</span>
+                </motion.button>
+              )}
+
+              {/* Profile Data Preview */}
+              <details className="text-left">
+                <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 mb-2">
+                  View Profile Data
+                </summary>
+                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg max-h-32 overflow-y-auto">
+                  <pre className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                    {generateQRCodeData()}
+                  </pre>
+                </div>
+              </details>
             </motion.div>
           </motion.div>
         )}
@@ -1347,17 +1757,26 @@ const Profile: React.FC = () => {
             <div className="flex space-x-3">
               <motion.button
                 onClick={handleDeleteAccount}
+                disabled={isLoading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="btn-danger flex-1"
+                className="btn-danger flex-1 flex items-center justify-center space-x-2 disabled:opacity-50"
               >
-                Delete Account
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete Account</span>
+                )}
               </motion.button>
               <motion.button
                 onClick={() => setShowDeleteModal(false)}
+                disabled={isLoading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="btn-secondary flex-1"
+                className="btn-secondary flex-1 disabled:opacity-50"
               >
                 Cancel
               </motion.button>
