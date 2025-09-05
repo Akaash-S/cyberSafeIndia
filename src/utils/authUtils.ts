@@ -1,4 +1,5 @@
 import type { User } from 'firebase/auth';
+import { toast } from './toast';
 
 export interface BackendUserData {
   uid: string;
@@ -64,10 +65,7 @@ export const registerUserWithBackend = async (firebaseUser: User): Promise<Backe
         console.log('User already exists, returning existing user data');
         // Show friendly toast notification
         if (typeof window !== 'undefined') {
-          // Import toast dynamically to avoid SSR issues
-          import('../utils/toast').then(({ toast }) => {
-            toast.info('Welcome back! Your account is already set up.');
-          });
+          toast.info('Welcome back! Your account is already set up.');
         }
         return result.data; // Return the existing user data instead of null
       } else {
@@ -75,9 +73,7 @@ export const registerUserWithBackend = async (firebaseUser: User): Promise<Backe
         console.error('Request payload was:', userData);
         // Show error toast
         if (typeof window !== 'undefined') {
-          import('../utils/toast').then(({ toast }) => {
-            toast.error(result.message || 'Failed to register with backend. Please try again.');
-          });
+          toast.error(result.message || 'Failed to register with backend. Please try again.');
         }
         return null;
       }

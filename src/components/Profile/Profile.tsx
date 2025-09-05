@@ -8,6 +8,7 @@ import QRCode from 'qrcode';
 import { throttle } from '../../utils/throttle';
 import { toast } from '../../utils/toast';
 import type { ScanHistory, ScanStatsResponse, ThreatReportItem } from '../../types/api';
+import { exportComprehensiveReport } from '../../utils/excelExport';
 import { 
   User, 
   Mail, 
@@ -570,7 +571,6 @@ const Profile: React.FC = () => {
         : [];
 
       // Create comprehensive Excel export
-      const { exportComprehensiveReport } = await import('../../utils/excelExport');
       exportComprehensiveReport(scanHistory, threatReports, stats);
       
       // Show success message
