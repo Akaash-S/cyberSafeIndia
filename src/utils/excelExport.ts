@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import type { AnalyticsData } from '../types/api';
 
 export interface ScanHistoryExport {
   url: string;
@@ -72,7 +73,7 @@ export const exportThreatReportsToExcel = (threatReports: ThreatReportExport[], 
 };
 
 // Export analytics data to Excel
-export const exportAnalyticsToExcel = (analyticsData: any, filename?: string) => {
+export const exportAnalyticsToExcel = (analyticsData: AnalyticsData, filename?: string) => {
   const workbook = XLSX.utils.book_new();
   
   // Create multiple sheets for different analytics data
@@ -140,7 +141,7 @@ export const exportAnalyticsToExcel = (analyticsData: any, filename?: string) =>
 export const exportComprehensiveReport = (
   scanHistory: ScanHistoryExport[],
   threatReports: ThreatReportExport[],
-  analyticsData: any,
+  analyticsData: Record<string, unknown>,
   filename?: string
 ) => {
   const workbook = XLSX.utils.book_new();

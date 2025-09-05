@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../firebase';
 import QRCode from 'qrcode';
+import type { ScanHistory, ScanStatsResponse, ThreatReportItem } from '../../types/api';
 import { 
   User, 
   Mail, 
@@ -36,6 +39,35 @@ import {
   ShieldCheck,
   Share2
 } from 'lucide-react';
+
+interface RecentActivity {
+  id: number;
+  type: string;
+  action: string;
+  status: string;
+  timestamp: string;
+  icon: React.ElementType;
+}
+
+interface Device {
+  id: string;
+  name: string;
+  type: string;
+  browser: string;
+  os: string;
+  lastActive: string;
+  current: boolean;
+  icon: React.ElementType;
+}
+
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  unlocked: boolean;
+  date: string | null;
+}
 
 const Profile: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -96,9 +128,9 @@ const Profile: React.FC = () => {
     accountAge: 0,
     securityScore: 85
   });
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [devices, setDevices] = useState<any[]>([]);
-  const [achievements, setAchievements] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -110,7 +142,7 @@ const Profile: React.FC = () => {
 
 
   // Load user stats
-  const loadUserStats = async () => {
+  const loadUserStats = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -121,9 +153,9 @@ const Profile: React.FC = () => {
       ]);
 
       if (scanStatsResponse.success && scanStatsResponse.data) {
-        const scanData = scanStatsResponse.data;
+        const scanData = scanStatsResponse.data as ScanStatsResponse;
         setStats(prev => ({
-          ...prev,
+      ...prev,
           totalScans: scanData.totalScans || 0,
           safeScans: scanData.statusBreakdown?.safe || 0,
           suspiciousScans: scanData.statusBreakdown?.suspicious || 0,
@@ -142,7 +174,7 @@ const Profile: React.FC = () => {
           totalReports: repData.userContribution?.totalReports || 0
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading user stats:', error);
       // Set default values on error
       setStats(prev => ({
@@ -158,16 +190,16 @@ const Profile: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   // Load recent activity
-  const loadRecentActivity = async () => {
+  const loadRecentActivity = useCallback(async () => {
     if (!user) return;
 
     try {
       const response = await apiService.getScanHistory(user, { limit: 10 });
       if (response.success && response.data && response.data.scans) {
-        const activities = response.data.scans.map((scan: any) => ({
+        const activities = response.data.scans.map((scan: ScanHistory) => ({
           id: scan.id,
           type: 'scan',
           action: `Scanned ${scan.url}`,
@@ -177,13 +209,13 @@ const Profile: React.FC = () => {
         }));
         setRecentActivity(activities);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading recent activity:', error);
     }
-  };
+  }, [user]);
 
   // Load devices
-  const loadDevices = async () => {
+  const loadDevices = useCallback(() => {
     // Mock device data - in real app, this would come from API
     const mockDevices = [
       {
@@ -208,10 +240,10 @@ const Profile: React.FC = () => {
       }
     ];
     setDevices(mockDevices);
-  };
+  }, []);
 
   // Load achievements
-  const loadAchievements = async () => {
+  const loadAchievements = useCallback(async () => {
     // Mock achievements data
     const mockAchievements = [
       {
@@ -248,10 +280,10 @@ const Profile: React.FC = () => {
       }
     ];
     setAchievements(mockAchievements);
-  };
+  }, [stats]);
 
   // Load user profile
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -263,10 +295,35 @@ const Profile: React.FC = () => {
           email: response.data!.email || user.email || ''
         }));
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading user profile:', error);
     }
-  };
+  }, [user]);
+
+  // Load notification settings
+  const loadNotificationSettings = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await apiService.getNotificationPreferences(user);
+      if (response.success && response.data) {
+        setNotificationSettings(response.data);
+      } else {
+        // Fallback to localStorage if API fails
+        const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
+        if (savedSettings) {
+          setNotificationSettings(JSON.parse(savedSettings));
+        }
+      }
+    } catch (error: unknown) {
+      console.error('Error loading notification settings:', error);
+      // Fallback to localStorage
+      const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
+      if (savedSettings) {
+        setNotificationSettings(JSON.parse(savedSettings));
+      }
+    }
+  }, [user]);
 
   // Load data on component mount
   useEffect(() => {
@@ -276,12 +333,17 @@ const Profile: React.FC = () => {
     loadDevices();
     loadAchievements();
     loadNotificationSettings();
-  }, [user]);
+  }, [user, loadUserStats, loadUserProfile, loadRecentActivity, loadDevices, loadAchievements, loadNotificationSettings]);
 
   // Reload achievements when stats change
   useEffect(() => {
     loadAchievements();
-  }, [stats]);
+  }, [stats, loadAchievements]);
+
+  // Debug modal state changes
+  useEffect(() => {
+    console.log('🔥 DELETE MODAL STATE CHANGED:', showDeleteModal);
+  }, [showDeleteModal]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -333,23 +395,71 @@ const Profile: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!user) return;
+    console.log('🔥 DELETE BUTTON CLICKED - Function called!');
+    
+    if (!user) {
+      console.error('No user found for deletion');
+      alert('No user found. Please sign in and try again.');
+      return;
+    }
 
+    console.log('Starting account deletion process for user:', user.uid);
     setIsLoading(true);
+    
     try {
-      // In a real app, this would call Firebase Auth to delete the account
-      // and also delete all user data from the database
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // First, call backend API to anonymize data in database (while user is still authenticated)
+      console.log('Calling backend API to anonymize data...');
+      console.log('User object:', user);
+      console.log('User UID:', user.uid);
       
-      alert('Account deleted successfully. You will be redirected to the login page.');
-      // In a real app, this would sign out the user and redirect
-      // For now, we'll just close the modal
-      setShowDeleteModal(false);
-    } catch (error) {
+      apiService.deleteUserAccount(user);
+      console.log('Firebase user deletion successful');
+      
+      // Sign out the user to clear the auth state
+      console.log('Signing out user...');
+      await signOut(auth);
+      console.log('User signed out successfully');
+      
+      // Show success message and redirect
+      alert('Account deleted successfully! Your data has been anonymized for analytics and compliance purposes.');
+      
+      // Redirect to home page
+      console.log('Redirecting to home page...');
+      window.location.href = '/';
+      
+    } catch (error: unknown) {
       console.error('Account deletion error:', error);
-      alert('Failed to delete account. Please try again.');
+      const errorDetails = error as { code?: string; message?: string; stack?: string };
+      console.error('Error details:', {
+        code: errorDetails.code,
+        message: errorDetails.message,
+        stack: errorDetails.stack
+      });
+      
+      // Handle specific Firebase errors
+      if (errorDetails.code === 'auth/requires-recent-login') {
+        alert('For security reasons, please sign out and sign back in before deleting your account.');
+      } else if (errorDetails.code === 'auth/network-request-failed') {
+        alert('Network error. Please check your connection and try again.');
+      } else if (errorDetails.code === 'auth/too-many-requests') {
+        alert('Too many requests. Please wait a moment and try again.');
+      } else if (errorDetails.code === 'auth/user-token-expired') {
+        alert('Your session has expired. Please sign in again and try deleting your account.');
+      } else {
+        // For any other error, try to sign out and redirect anyway
+        console.log('Attempting to sign out user despite error...');
+        try {
+          await signOut(auth);
+          alert('Account deletion encountered an error, but you have been signed out. Please contact support if the issue persists.');
+          window.location.href = '/';
+        } catch (signOutError: unknown) {
+          console.error('Sign out error:', signOutError);
+          alert(`Failed to delete account: ${errorDetails.message || 'Unknown error'}`);
+        }
+      }
     } finally {
       setIsLoading(false);
+    setShowDeleteModal(false);
     }
   };
 
@@ -364,8 +474,8 @@ const Profile: React.FC = () => {
         apiService.getUserThreatReports(user)
       ]);
 
-      const userData = {
-        profile: profileData,
+    const userData = {
+      profile: profileData,
         stats: stats,
         recentActivity: recentActivity,
         devices: devices,
@@ -373,25 +483,25 @@ const Profile: React.FC = () => {
         scanHistory: scanHistoryResponse.success && scanHistoryResponse.data ? scanHistoryResponse.data.scans || [] : [],
         threatReports: threatReportsResponse.success ? threatReportsResponse.data : [],
         accountInfo: {
-          accountCreated: user?.metadata.creationTime,
-          lastSignIn: user?.metadata.lastSignInTime,
-          emailVerified: user?.emailVerified,
+      accountCreated: user?.metadata.creationTime,
+      lastSignIn: user?.metadata.lastSignInTime,
+      emailVerified: user?.emailVerified,
           provider: user?.providerData[0]?.providerId,
           uid: user?.uid
         },
         exportDate: new Date().toISOString(),
         version: '1.0'
-      };
+    };
 
-      const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+    const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
       a.download = `cybersafe-profile-${user.displayName || 'user'}-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
       
       alert('Profile data downloaded successfully!');
     } catch (error) {
@@ -413,17 +523,17 @@ const Profile: React.FC = () => {
       ]);
 
       const scanHistory = scanHistoryResponse.success && scanHistoryResponse.data && scanHistoryResponse.data.scans
-        ? scanHistoryResponse.data.scans.map((scan: any) => ({
+        ? scanHistoryResponse.data.scans.map((scan: ScanHistory) => ({
             url: scan.url,
             status: scan.status,
-            confidence: scan.details?.virustotal?.confidence || 0,
+            confidence: scan.confidence || 0,
             scanDate: scan.scanDate,
             domain: scan.url ? new URL(scan.url).hostname : ''
           }))
         : [];
 
       const threatReports = threatReportsResponse.success && threatReportsResponse.data
-        ? threatReportsResponse.data.map((report: any) => ({
+        ? (threatReportsResponse.data as ThreatReportItem[]).map((report: ThreatReportItem) => ({
             url: report.url,
             threatType: report.threatType,
             severity: report.severity,
@@ -559,30 +669,6 @@ const Profile: React.FC = () => {
     return 'text-red-600';
   };
 
-  // Load notification settings
-  const loadNotificationSettings = async () => {
-    if (!user) return;
-    
-    try {
-      const response = await apiService.getNotificationPreferences(user);
-      if (response.success && response.data) {
-        setNotificationSettings(response.data);
-      } else {
-        // Fallback to localStorage if API fails
-        const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
-        if (savedSettings) {
-          setNotificationSettings(JSON.parse(savedSettings));
-        }
-      }
-    } catch (error) {
-      console.error('Error loading notification settings:', error);
-      // Fallback to localStorage
-      const savedSettings = localStorage.getItem(`notificationSettings_${user.uid}`);
-      if (savedSettings) {
-        setNotificationSettings(JSON.parse(savedSettings));
-      }
-    }
-  };
 
   // Save notification settings
   const saveNotificationSettings = async (newSettings: typeof notificationSettings) => {
@@ -666,7 +752,7 @@ const Profile: React.FC = () => {
                 <CheckCircle className="w-4 h-4 text-white" />
               </div>
             </div>
-            <div>
+        <div>
               <h1 className="text-3xl font-bold">{user.displayName || 'User'}</h1>
               <p className="text-primary-100">{user.email}</p>
               <div className="flex items-center space-x-4 mt-2">
@@ -680,12 +766,12 @@ const Profile: React.FC = () => {
                   <Shield className="w-4 h-4" />
                   <span>Security Score: {stats.securityScore}</span>
                 </span>
-              </div>
+        </div>
             </div>
           </div>
           
           <div className="flex flex-wrap items-center gap-2 mt-4 lg:mt-0">
-            <motion.button
+          <motion.button
               onClick={refreshData}
               disabled={isLoading}
               whileHover={{ scale: 1.05 }}
@@ -694,7 +780,7 @@ const Profile: React.FC = () => {
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
-            </motion.button>
+          </motion.button>
             
             <motion.button
               onClick={() => setShowExportModal(true)}
@@ -706,8 +792,8 @@ const Profile: React.FC = () => {
               <span>Export</span>
             </motion.button>
             
-            <motion.button
-              onClick={() => setIsEditing(!isEditing)}
+          <motion.button
+            onClick={() => setIsEditing(!isEditing)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="bg-white text-primary-600 hover:bg-opacity-90 px-4 py-2 rounded-lg flex items-center space-x-2 transition-all font-medium"
@@ -738,8 +824,8 @@ const Profile: React.FC = () => {
             <motion.button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
               className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-md transition-all ${
                 activeTab === tab.id
                   ? 'bg-primary-600 text-white shadow-md'
@@ -748,16 +834,16 @@ const Profile: React.FC = () => {
             >
               <tab.icon className="w-4 h-4" />
               <span className="font-medium">{tab.label}</span>
-            </motion.button>
+          </motion.button>
           ))}
         </div>
       </motion.div>
 
       {/* Tab Content */}
-      <motion.div
+        <motion.div
         key={activeTab}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
         className="space-y-6"
       >
@@ -769,7 +855,7 @@ const Profile: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 }}
+          transition={{ delay: 0.1 }}
                 className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white"
               >
                 <div className="flex items-center justify-between">
@@ -914,7 +1000,7 @@ const Profile: React.FC = () => {
                   Recent Activity
                 </h3>
                 <div className="space-y-3">
-                  {recentActivity.slice(0, 5).map((activity: any, index) => (
+                  {recentActivity.map((activity: RecentActivity, index) => (
                     <motion.div
                       key={activity.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -1120,7 +1206,7 @@ const Profile: React.FC = () => {
           </div>
             </div>
 
-            {/* Sidebar */}
+        {/* Sidebar */}
             <div className="space-y-6">
           {/* Notifications */}
           <div className="card">
@@ -1168,12 +1254,17 @@ const Profile: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setShowDeleteModal(true)}
+                onClick={() => {
+                  console.log('🔥 DELETE MODAL BUTTON CLICKED - Opening modal');
+                  setShowDeleteModal(true);
+                }}
                 className="w-full btn-danger flex items-center justify-center space-x-2"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete Account</span>
               </motion.button>
+              
+              
             </div>
           </div>
 
@@ -1298,7 +1389,7 @@ const Profile: React.FC = () => {
                 Recent Activity
               </h3>
               <div className="space-y-3">
-                {recentActivity.map((activity: any, index) => (
+                {recentActivity.map((activity: RecentActivity, index) => (
                   <motion.div
                     key={activity.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -1320,9 +1411,9 @@ const Profile: React.FC = () => {
                     }`}>
                       {activity.status}
                     </span>
-                  </motion.div>
+        </motion.div>
                 ))}
-              </div>
+      </div>
             </div>
           </div>
         )}
@@ -1336,7 +1427,7 @@ const Profile: React.FC = () => {
                 Your Achievements
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {achievements.map((achievement: any, index) => (
+                {achievements.map((achievement: Achievement, index) => (
                   <motion.div
                     key={achievement.id}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -1454,7 +1545,10 @@ const Profile: React.FC = () => {
                   </motion.button>
                   
                   <motion.button
-                    onClick={() => setShowDeleteModal(true)}
+                    onClick={() => {
+                      console.log('🔥 DELETE MODAL BUTTON CLICKED (2) - Opening modal');
+                      setShowDeleteModal(true);
+                    }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="w-full btn-danger flex items-center justify-center space-x-2"
@@ -1659,12 +1753,14 @@ const Profile: React.FC = () => {
       </AnimatePresence>
 
       {/* Delete Account Modal */}
-      {showDeleteModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        >
+      <AnimatePresence>
+        {showDeleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1673,12 +1769,27 @@ const Profile: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Delete Account
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.
-            </p>
+            <div className="text-gray-600 dark:text-gray-400 mb-6 space-y-3">
+              <p className="font-semibold text-red-600 dark:text-red-400">
+                ⚠️ This action cannot be undone!
+              </p>
+              <p>
+                Your account will be permanently deleted from Firebase Authentication, but your scan data will be preserved in our database for analytics and compliance purposes.
+              </p>
+              <p className="text-sm">
+                <strong>What happens:</strong>
+                <br />• Your login credentials will be deleted
+                <br />• Your personal information will be anonymized
+                <br />• Your scan history will be preserved for security research
+                <br />• You will be redirected to the home page
+              </p>
+            </div>
             <div className="flex space-x-3">
               <motion.button
-                onClick={handleDeleteAccount}
+                onClick={() => {
+                  console.log('🔥 MODAL DELETE BUTTON CLICKED');
+                  handleDeleteAccount();
+                }}
                 disabled={isLoading}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -1705,7 +1816,8 @@ const Profile: React.FC = () => {
             </div>
           </motion.div>
         </motion.div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 };

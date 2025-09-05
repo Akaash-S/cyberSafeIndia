@@ -1,5 +1,15 @@
 // Simple API service - clean and straightforward
-import type { ApiResponse, User } from '../types/api';
+import type { 
+  ApiResponse, 
+  User, 
+  AnalyticsOverview,
+  AnalyticsTrends,
+  ReputationData,
+  ThreatReportsData,
+  ScanHistoryResponse,
+  UserProfile,
+  NotificationSettings
+} from '../types/api';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -44,7 +54,7 @@ class ApiService {
     status?: string;
     sortBy?: string;
     sortOrder?: string;
-  } = {}): Promise<ApiResponse> {
+  } = {}): Promise<ApiResponse<ScanHistoryResponse>> {
     try {
       const queryString = new URLSearchParams(
         Object.entries(params).reduce((acc, [key, value]) => {
@@ -119,7 +129,7 @@ class ApiService {
   }
 
   // Get analytics overview
-  async getAnalyticsOverview(user: User): Promise<ApiResponse> {
+  async getAnalyticsOverview(user: User): Promise<ApiResponse<AnalyticsOverview>> {
     try {
       const response = await fetch(`${API_BASE_URL}/analytics/overview`, {
         headers: { 'Authorization': createAuthHeader(user) }
@@ -136,7 +146,7 @@ class ApiService {
     period?: 'day' | 'week' | 'month' | 'year';
     startDate?: string;
     endDate?: string;
-  } = {}): Promise<ApiResponse> {
+  } = {}): Promise<ApiResponse<AnalyticsTrends>> {
     try {
       const queryString = new URLSearchParams(
         Object.entries(params).reduce((acc, [key, value]) => {
@@ -158,7 +168,7 @@ class ApiService {
   }
 
   // Get user profile
-  async getUserProfile(user: User): Promise<ApiResponse> {
+  async getUserProfile(user: User): Promise<ApiResponse<UserProfile>> {
     try {
       const response = await fetch(`${API_BASE_URL}/user/profile`, {
         headers: { 'Authorization': createAuthHeader(user) }
@@ -222,7 +232,7 @@ class ApiService {
   }
 
   // Get reputation analytics
-  async getReputationAnalytics(user: User): Promise<ApiResponse> {
+  async getReputationAnalytics(user: User): Promise<ApiResponse<ReputationData>> {
     try {
       const response = await fetch(`${API_BASE_URL}/analytics/reputation`, {
         headers: { 'Authorization': createAuthHeader(user) }
@@ -235,7 +245,7 @@ class ApiService {
   }
 
   // Get threat reports analytics
-  async getThreatReportsAnalytics(user: User): Promise<ApiResponse> {
+  async getThreatReportsAnalytics(user: User): Promise<ApiResponse<ThreatReportsData>> {
     try {
       const response = await fetch(`${API_BASE_URL}/reports/analytics`, {
         headers: { 'Authorization': createAuthHeader(user) }
@@ -261,7 +271,7 @@ class ApiService {
   }
 
   // Get notification preferences
-  async getNotificationPreferences(user: User): Promise<ApiResponse> {
+  async getNotificationPreferences(user: User): Promise<ApiResponse<NotificationSettings>> {
     try {
       const response = await fetch(`${API_BASE_URL}/notifications/preferences`, {
         headers: { 'Authorization': createAuthHeader(user) }
@@ -274,7 +284,7 @@ class ApiService {
   }
 
   // Update notification preferences
-  async updateNotificationPreferences(user: User, preferences: any): Promise<ApiResponse> {
+  async updateNotificationPreferences(user: User, preferences: Record<string, unknown>): Promise<ApiResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/notifications/preferences`, {
         method: 'PUT',
@@ -306,6 +316,22 @@ class ApiService {
     } catch (error) {
       console.error('Test notification error:', error);
       return { success: false, error: 'Failed to send test notification' };
+    }
+  }
+
+  // Delete user account
+  async deleteUserAccount(user: User): Promise<ApiResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/user/profile`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': createAuthHeader(user)
+        }
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Delete user account error:', error);
+      return { success: false, error: 'Failed to delete user account' };
     }
   }
 }

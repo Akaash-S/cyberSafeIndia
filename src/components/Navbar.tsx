@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { signOut } from 'firebase/auth';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { auth } from '../firebase';
 import { 
   Menu, 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   PieChart,
@@ -21,25 +21,24 @@ import {
   Shield, 
   AlertTriangle, 
   XCircle,
-  Download,
-  RefreshCw,
   Users,
   Flag,
   CheckCircle,
   Globe,
   BarChart3,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Clock
 } from 'lucide-react';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import { 
   exportScanHistoryToExcel, 
   exportThreatReportsToExcel, 
-  exportAnalyticsToExcel,
   exportComprehensiveReport,
   type ScanHistoryExport,
   type ThreatReportExport
 } from '../../utils/excelExport';
+import type { ScanHistoryItem, ThreatReportItem } from '../../types/api';
 
 interface AnalyticsData {
   threatDistribution: {
@@ -65,6 +64,10 @@ interface AnalyticsData {
     suspicious: number;
     malicious: number;
   }[];
+  totalScans: number;
+  safeScans: number;
+  suspiciousScans: number;
+  maliciousScans: number;
 }
 
 interface Trend {
@@ -151,7 +154,7 @@ const Analytics: React.FC = () => {
   const [exporting, setExporting] = useState(false);
 
   // Load analytics data from API
-  const loadAnalyticsData = async () => {
+  const loadAnalyticsData = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -209,7 +212,11 @@ const Analytics: React.FC = () => {
             safe: trend.safeScans,
             suspicious: trend.suspiciousScans,
             malicious: trend.maliciousScans
-          })) : []
+          })) : [],
+          totalScans: overview.statusBreakdown.safe + overview.statusBreakdown.suspicious + overview.statusBreakdown.malicious,
+          safeScans: overview.statusBreakdown.safe,
+          suspiciousScans: overview.statusBreakdown.suspicious,
+          maliciousScans: overview.statusBreakdown.malicious
         };
 
         setData(analyticsData);
@@ -231,7 +238,7 @@ const Analytics: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, timeRange]);
 
   // Export functions
   const handleExportScanHistory = async () => {
@@ -241,10 +248,10 @@ const Analytics: React.FC = () => {
     try {
       const response = await apiService.getScanHistory(user);
       if (response.success && response.data) {
-        const scanHistory: ScanHistoryExport[] = response.data.map((scan: any) => ({
+        const scanHistory: ScanHistoryExport[] = (response.data.scans as ScanHistoryItem[]).map((scan: ScanHistoryItem) => ({
           url: scan.url,
           status: scan.status,
-          confidence: scan.confidence,
+          confidence: scan.confidence || 0,
           scanDate: scan.scanDate,
           domain: scan.url ? new URL(scan.url).hostname : '',
           threatType: scan.details?.community?.threatType || '',
@@ -267,7 +274,7 @@ const Analytics: React.FC = () => {
     try {
       const response = await apiService.getUserThreatReports(user);
       if (response.success && response.data) {
-        const threatReports: ThreatReportExport[] = response.data.map((report: any) => ({
+        const threatReports: ThreatReportExport[] = (response.data as ThreatReportItem[]).map((report: ThreatReportItem) => ({
           url: report.url,
           threatType: report.threatType,
           severity: report.severity,
@@ -286,25 +293,25 @@ const Analytics: React.FC = () => {
     }
   };
 
-  const handleExportAnalytics = () => {
-    if (!data) return;
-    
-    const analyticsData = {
-      overview: {
-        totalScans: data.totalScans,
-        safeScans: data.safeScans,
-        suspiciousScans: data.suspiciousScans,
-        maliciousScans: data.maliciousScans
-      },
-      threatDistribution: data.threatDistribution,
-      scanTrends: data.weeklyScans,
-      topDomains: data.topDomains,
-      reputationData: reputationData,
-      threatReportsData: threatReportsData
-    };
-    
-    exportAnalyticsToExcel(analyticsData);
-  };
+  // const handleExportAnalytics = () => {
+  //   if (!data) return;
+  //   
+  //   const analyticsData = {
+  //     overview: {
+  //       totalScans: data.totalScans,
+  //       safeScans: data.safeScans,
+  //       suspiciousScans: data.suspiciousScans,
+  //       maliciousScans: data.maliciousScans
+  //     },
+  //     threatDistribution: data.threatDistribution,
+  //     scanTrends: data.weeklyScans,
+  //     topDomains: data.topDomains,
+  //     reputationData: reputationData,
+  //     threatReportsData: threatReportsData
+  //   };
+  //   
+  //   exportAnalyticsToExcel(analyticsData);
+  // };
 
   const handleExportComprehensiveReport = async () => {
     if (!user || !data) return;
@@ -314,10 +321,10 @@ const Analytics: React.FC = () => {
       // Get scan history
       const scanHistoryResponse = await apiService.getScanHistory(user);
       const scanHistory: ScanHistoryExport[] = scanHistoryResponse.success && scanHistoryResponse.data 
-        ? scanHistoryResponse.data.map((scan: any) => ({
+        ? (scanHistoryResponse.data.scans as ScanHistoryItem[]).map((scan: ScanHistoryItem) => ({
             url: scan.url,
             status: scan.status,
-            confidence: scan.confidence,
+            confidence: scan.confidence || 0,
             scanDate: scan.scanDate,
             domain: scan.url ? new URL(scan.url).hostname : '',
             threatType: scan.details?.community?.threatType || '',
@@ -328,7 +335,7 @@ const Analytics: React.FC = () => {
       // Get threat reports
       const threatReportsResponse = await apiService.getUserThreatReports(user);
       const threatReports: ThreatReportExport[] = threatReportsResponse.success && threatReportsResponse.data
-        ? threatReportsResponse.data.map((report: any) => ({
+        ? (threatReportsResponse.data as ThreatReportItem[]).map((report: ThreatReportItem) => ({
             url: report.url,
             threatType: report.threatType,
             severity: report.severity,
@@ -358,7 +365,7 @@ const Analytics: React.FC = () => {
 
   useEffect(() => {
     loadAnalyticsData();
-  }, [user, timeRange]);
+  }, [user, timeRange, loadAnalyticsData]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -386,12 +393,12 @@ const Analytics: React.FC = () => {
     }
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
           <p className="font-medium text-gray-900 dark:text-white">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry: { name: string; value: number; color: string }, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
               {entry.name}: {entry.value}
             </p>
@@ -446,7 +453,7 @@ const Analytics: React.FC = () => {
         <div className="flex items-center space-x-4 mt-4 sm:mt-0">
           <select
             value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as any)}
+            onChange={(e) => setTimeRange(e.target.value as 'week' | 'month' | 'year')}
             className="input-field"
           >
             <option value="week">Last Week</option>

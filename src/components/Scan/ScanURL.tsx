@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2, Flag, Eye, FileSpreadsheet } from 'lucide-react';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import type { ScanResult, ScanHistory } from '../../types/api';
 import { exportScanHistoryToExcel, type ScanHistoryExport } from '../../utils/excelExport';
@@ -169,7 +169,7 @@ const ScanURL: React.FC = () => {
         setError(response.error || 'Failed to scan URL');
         updateStageStatus('analysis', 'error');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Scan error:', error);
       setError('An error occurred while scanning the URL');
       updateStageStatus(currentStage, 'error');
@@ -180,7 +180,7 @@ const ScanURL: React.FC = () => {
   };
 
   // Load scan history
-  const loadScanHistory = async () => {
+  const loadScanHistory = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -191,12 +191,12 @@ const ScanURL: React.FC = () => {
     } catch (error) {
       console.error('Error loading scan history:', error);
     }
-  };
+  }, [user]);
 
   // Load scan history on component mount
   useEffect(() => {
     loadScanHistory();
-  }, [user]);
+  }, [user, loadScanHistory]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

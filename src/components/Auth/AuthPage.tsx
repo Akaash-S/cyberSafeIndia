@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { signInWithPopup } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { auth, googleProvider } from '../../firebase';
 import { Chrome } from 'lucide-react';
 
@@ -44,8 +44,8 @@ const AuthPage: React.FC = () => {
       await signInWithPopup(auth, googleProvider);
       // Redirect to home page after successful authentication
       navigate('/', { replace: true });
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

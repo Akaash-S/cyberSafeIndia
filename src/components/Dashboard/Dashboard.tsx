@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -10,9 +10,24 @@ import {
   ExternalLink,
   BarChart3
 } from 'lucide-react';
-import { useAuth } from '../../AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import type { ScanHistory } from '../../types/api';
+
+// Type for VirusTotal data structure
+interface VirusTotalData {
+  positives?: number;
+  total?: number;
+  confidence?: number;
+}
+
+// Type for AbuseIPDB data structure
+interface AbuseIPDBData {
+  abuseConfidence?: number;
+  abuseConfidencePercentage?: number;
+  countryCode?: string;
+  totalReports?: number;
+}
 
 // Use ScanHistory from apiService instead of local interface
 
@@ -29,7 +44,7 @@ const Dashboard: React.FC = () => {
   const itemsPerPage = 10;
 
   // Load scan history from API
-  const loadScanHistory = async () => {
+  const loadScanHistory = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -54,11 +69,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, currentPage, statusFilter]);
 
   useEffect(() => {
     loadScanHistory();
-  }, [user, currentPage, statusFilter]);
+  }, [user, currentPage, statusFilter, loadScanHistory]);
 
   // Filter and search logic
   useEffect(() => {
@@ -144,8 +159,8 @@ const Dashboard: React.FC = () => {
         scan.url,
         scan.status,
         new Date(scan.scanDate).toLocaleString(),
-        scan.details.virustotal?.positives.toString() || '0',
-        scan.details.abuseipdb?.abuseConfidence.toString() || '0'
+        (scan.details.virustotal as VirusTotalData)?.positives?.toString() || '0',
+        (scan.details.abuseipdb as AbuseIPDBData)?.abuseConfidence?.toString() || '0'
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -280,7 +295,7 @@ const Dashboard: React.FC = () => {
             </label>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'safe' | 'suspicious' | 'malicious')}
               className="input-field"
             >
               <option value="all">All Status</option>
@@ -296,7 +311,7 @@ const Dashboard: React.FC = () => {
             </label>
             <select
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as any)}
+              onChange={(e) => setDateFilter(e.target.value as 'all' | 'today' | 'week' | 'month')}
               className="input-field"
             >
               <option value="all">All Time</option>
@@ -352,7 +367,7 @@ const Dashboard: React.FC = () => {
                           {scan.url}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {scan.details.virustotal?.positives || 0}/{scan.details.virustotal?.total || 0} detections
+                          {(scan.details.virustotal as VirusTotalData)?.positives || 0}/{(scan.details.virustotal as VirusTotalData)?.total || 0} detections
                         </div>
                       </div>
                     </div>
