@@ -78,11 +78,6 @@ interface Trend {
   maliciousScans: number;
 }
 
-interface Domain {
-  domain: string;
-  totalScans: number;
-  maliciousScans: number;
-}
 
 interface ReputationData {
   userContribution: {
@@ -202,10 +197,10 @@ const Analytics: React.FC = () => {
             suspicious: trend.suspiciousScans,
             malicious: trend.maliciousScans
           })) : [],
-          topDomains: overview.topDomains && overview.topDomains.length > 0 ? overview.topDomains.map((domain: Domain) => ({
+          topDomains: overview.topDomains && overview.topDomains.length > 0 ? overview.topDomains.map((domain) => ({
             domain: domain.domain,
-            count: domain.totalScans,
-            status: domain.maliciousScans > 0 ? 'malicious' : 'safe'
+            count: domain.count,
+            status: 'safe' as const // Default to safe since we don't have malicious count in this structure
           })) : [],
           threatTrends: trends.trends && trends.trends.length > 0 ? trends.trends.map((trend: Trend) => ({
             month: new Date(trend.period).toLocaleDateString('en-US', { month: 'short' }),
@@ -223,12 +218,31 @@ const Analytics: React.FC = () => {
         
         // Set reputation data if available
         if (reputationResponse.success && reputationResponse.data) {
-          setReputationData(reputationResponse.data);
+          // Ensure userContribution has default values
+          const reputationData = {
+            ...reputationResponse.data,
+            userContribution: {
+              threatReports: reputationResponse.data.userContribution?.threatReports || 0,
+              safeReports: reputationResponse.data.userContribution?.safeReports || 0,
+              totalReports: reputationResponse.data.userContribution?.totalReports || 0
+            }
+          } as ReputationData;
+          setReputationData(reputationData);
         }
         
         // Set threat reports data if available
         if (threatReportsResponse.success && threatReportsResponse.data) {
-          setThreatReportsData(threatReportsResponse.data);
+          // Ensure userStats has default values
+          const threatReportsData = {
+            ...threatReportsResponse.data,
+            userStats: {
+              totalReports: threatReportsResponse.data.userStats?.totalReports || 0,
+              approvedReports: threatReportsResponse.data.userStats?.approvedReports || 0,
+              pendingReports: threatReportsResponse.data.userStats?.pendingReports || 0,
+              rejectedReports: threatReportsResponse.data.userStats?.rejectedReports || 0
+            }
+          } as ThreatReportsData;
+          setThreatReportsData(threatReportsData);
         }
       } else {
         console.error('Failed to load analytics data:', overviewResponse.error || trendsResponse.error);

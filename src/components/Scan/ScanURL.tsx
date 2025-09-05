@@ -161,7 +161,20 @@ const ScanURL: React.FC = () => {
       const response = await apiService.scanUrl(url, user);
       
       if (response.success && response.data) {
-        setResult(response.data);
+        // Ensure the result has the proper structure
+        const scanResult: ScanResult = {
+          url: (response.data as any).url || url,
+          status: (response.data as any).status || 'unknown',
+          confidence: (response.data as any).confidence || 0,
+          details: {
+            virustotal: (response.data as any).details?.virustotal || {},
+            abuseipdb: (response.data as any).details?.abuseipdb || {},
+            community: (response.data as any).details?.community || {}
+          },
+          scanDate: (response.data as any).scanDate || new Date().toISOString(),
+          cached: (response.data as any).cached || false
+        };
+        setResult(scanResult);
         updateStageStatus('analysis', 'completed', 500);
         // Refresh scan history
         loadScanHistory();
@@ -645,10 +658,10 @@ const ScanURL: React.FC = () => {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600 dark:text-gray-400">
-                        Status: {result.details.virustotal.data?.attributes?.last_analysis_stats?.malicious || 0} malicious detections
+                        Status: {(result.details.virustotal as any)?.data?.attributes?.last_analysis_stats?.malicious || 0} malicious detections
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Total Engines: {Object.keys(result.details.virustotal.data?.attributes?.last_analysis_results || {}).length}
+                        Total Engines: {Object.keys((result.details.virustotal as any)?.data?.attributes?.last_analysis_results || {}).length}
                       </p>
                     </div>
                   </div>
@@ -661,13 +674,13 @@ const ScanURL: React.FC = () => {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600 dark:text-gray-400">
-                        Abuse Confidence: {result.details.abuseipdb.data?.abuseConfidencePercentage || 0}%
+                        Abuse Confidence: {(result.details.abuseipdb as any)?.data?.abuseConfidencePercentage || 0}%
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Country: {result.details.abuseipdb.data?.countryCode || 'Unknown'}
+                        Country: {(result.details.abuseipdb as any)?.data?.countryCode || 'Unknown'}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Total Reports: {result.details.abuseipdb.data?.totalReports || 0}
+                        Total Reports: {(result.details.abuseipdb as any)?.data?.totalReports || 0}
                       </p>
                     </div>
                   </div>

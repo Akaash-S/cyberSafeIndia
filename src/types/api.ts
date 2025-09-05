@@ -48,10 +48,10 @@ export interface ApiResponse<T = unknown> {
 
 // Analytics types
 export interface AnalyticsOverview {
-  statusBreakdown?: {
-    safe?: number;
-    suspicious?: number;
-    malicious?: number;
+  statusBreakdown: {
+    safe: number;
+    suspicious: number;
+    malicious: number;
   };
   topDomains?: Array<{
     domain: string;
@@ -70,10 +70,10 @@ export interface AnalyticsTrends {
 }
 
 export interface ReputationData {
-  userContribution?: {
-    threatReports?: number;
-    safeReports?: number;
-    totalReports?: number;
+  userContribution: {
+    threatReports: number;
+    safeReports: number;
+    totalReports: number;
   };
   communityStats?: {
     totalSafeUrls?: number;
@@ -100,11 +100,11 @@ export interface ReputationData {
 }
 
 export interface ThreatReportsData {
-  userStats?: {
-    totalReports?: number;
-    approvedReports?: number;
-    pendingReports?: number;
-    rejectedReports?: number;
+  userStats: {
+    totalReports: number;
+    approvedReports: number;
+    pendingReports: number;
+    rejectedReports: number;
   };
   threatTypeBreakdown?: Array<{
     type: string;
