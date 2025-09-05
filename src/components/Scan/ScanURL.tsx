@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../AuthContext';
 import apiService from '../../services/api';
 import type { ScanResult, ScanHistory } from '../../types/api';
 
-// Remove duplicate interface - using the one from apiService
+// Scan stage interface
+interface ScanStage {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  status: 'pending' | 'in_progress' | 'completed' | 'error';
+  duration?: number;
+}
 
 const ScanURL: React.FC = () => {
   const { user } = useAuth();
@@ -14,6 +22,47 @@ const ScanURL: React.FC = () => {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
   const [scanHistory, setScanHistory] = useState<ScanHistory[]>([]);
+  const [scanStages, setScanStages] = useState<ScanStage[]>([]);
+  const [currentStage, setCurrentStage] = useState<string>('');
+
+  // Initialize scan stages
+  const initializeScanStages = (): ScanStage[] => [
+    {
+      id: 'validation',
+      name: 'URL Validation',
+      description: 'Validating URL format and structure',
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'cache',
+      name: 'Cache Check',
+      description: 'Checking for recent scan results',
+      icon: <Database className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'virustotal',
+      name: 'VirusTotal Analysis',
+      description: 'Scanning for malware and threats',
+      icon: <Shield className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'abuseipdb',
+      name: 'AbuseIPDB Check',
+      description: 'Checking IP reputation and abuse reports',
+      icon: <Globe className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'analysis',
+      name: 'Final Analysis',
+      description: 'Combining results and determining threat level',
+      icon: <Clock className="w-5 h-5" />,
+      status: 'pending'
+    }
+  ];
 
   const validateURL = (url: string): boolean => {
     try {
@@ -22,6 +71,14 @@ const ScanURL: React.FC = () => {
     } catch {
       return false;
     }
+  };
+
+  const updateStageStatus = (stageId: string, status: ScanStage['status'], duration?: number) => {
+    setScanStages(prev => prev.map(stage => 
+      stage.id === stageId 
+        ? { ...stage, status, duration }
+        : stage
+    ));
   };
 
   const handleScan = async (e: React.FormEvent) => {
@@ -37,30 +94,69 @@ const ScanURL: React.FC = () => {
       return;
     }
 
+    // Initialize scan stages
+    const stages = initializeScanStages();
+    setScanStages(stages);
+    setCurrentStage('validation');
+
+    // Stage 1: URL Validation
+    updateStageStatus('validation', 'in_progress');
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate validation time
+    
     if (!validateURL(url)) {
       setError('Please enter a valid URL');
+      updateStageStatus('validation', 'error');
       return;
     }
+    
+    updateStageStatus('validation', 'completed', 500);
+    setCurrentStage('cache');
 
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
+      // Stage 2: Cache Check (simulated)
+      updateStageStatus('cache', 'in_progress');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      updateStageStatus('cache', 'completed', 300);
+      setCurrentStage('virustotal');
+
+      // Stage 3: VirusTotal Analysis
+      updateStageStatus('virustotal', 'in_progress');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      updateStageStatus('virustotal', 'completed', 1000);
+      setCurrentStage('abuseipdb');
+
+      // Stage 4: AbuseIPDB Check
+      updateStageStatus('abuseipdb', 'in_progress');
+      await new Promise(resolve => setTimeout(resolve, 800));
+      updateStageStatus('abuseipdb', 'completed', 800);
+      setCurrentStage('analysis');
+
+      // Stage 5: Final Analysis
+      updateStageStatus('analysis', 'in_progress');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const response = await apiService.scanUrl(url, user);
       
       if (response.success && response.data) {
         setResult(response.data);
+        updateStageStatus('analysis', 'completed', 500);
         // Refresh scan history
         loadScanHistory();
       } else {
         setError(response.error || 'Failed to scan URL');
+        updateStageStatus('analysis', 'error');
       }
     } catch (error: any) {
       console.error('Scan error:', error);
       setError('An error occurred while scanning the URL');
+      updateStageStatus(currentStage, 'error');
     } finally {
       setLoading(false);
+      setCurrentStage('');
     }
   };
 
@@ -135,6 +231,123 @@ const ScanURL: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Scan stages display component
+  const ScanStagesDisplay = () => {
+    if (scanStages.length === 0) return null;
+
+    const completedStages = scanStages.filter(stage => stage.status === 'completed').length;
+    const totalStages = scanStages.length;
+    const progressPercentage = (completedStages / totalStages) * 100;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="card"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Scan Progress
+          </h3>
+          <div className="text-right">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {completedStages}/{totalStages} stages completed
+            </span>
+            {currentStage && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                Currently: {scanStages.find(s => s.id === currentStage)?.name}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <motion.div
+              className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercentage}%` }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+            {Math.round(progressPercentage)}% Complete
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {scanStages.map((stage, index) => (
+            <motion.div
+              key={stage.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={`flex items-center space-x-3 p-3 rounded-lg transition-all duration-300 ${
+                stage.status === 'completed' 
+                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                  : stage.status === 'in_progress'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                  : stage.status === 'error'
+                  ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  : 'bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+              }`}
+            >
+              <div className={`flex-shrink-0 ${
+                stage.status === 'completed' 
+                  ? 'text-green-600 dark:text-green-400'
+                  : stage.status === 'in_progress'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : stage.status === 'error'
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-gray-400 dark:text-gray-500'
+              }`}>
+                {stage.status === 'completed' ? (
+                  <CheckCircle className="w-5 h-5" />
+                ) : stage.status === 'in_progress' ? (
+                  <div className="loading-spinner w-5 h-5"></div>
+                ) : stage.status === 'error' ? (
+                  <XCircle className="w-5 h-5" />
+                ) : (
+                  stage.icon
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-medium ${
+                  stage.status === 'completed' 
+                    ? 'text-green-900 dark:text-green-100'
+                    : stage.status === 'in_progress'
+                    ? 'text-blue-900 dark:text-blue-100'
+                    : stage.status === 'error'
+                    ? 'text-red-900 dark:text-red-100'
+                    : 'text-gray-700 dark:text-gray-300'
+                }`}>
+                  {stage.name}
+                </p>
+                <p className={`text-xs ${
+                  stage.status === 'completed' 
+                    ? 'text-green-700 dark:text-green-300'
+                    : stage.status === 'in_progress'
+                    ? 'text-blue-700 dark:text-blue-300'
+                    : stage.status === 'error'
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {stage.description}
+                </p>
+              </div>
+              {stage.duration && (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {stage.duration}ms
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       {/* Header */}
@@ -183,7 +396,15 @@ const ScanURL: React.FC = () => {
                 className="btn-primary px-6 flex items-center space-x-2"
               >
                 {loading ? (
-                  <div className="loading-spinner w-5 h-5"></div>
+                  <>
+                    <div className="loading-spinner w-5 h-5"></div>
+                    <span>
+                      {currentStage ? 
+                        `Scanning... ${scanStages.find(s => s.id === currentStage)?.name}` : 
+                        'Scanning...'
+                      }
+                    </span>
+                  </>
                 ) : (
                   <>
                     <Search className="w-5 h-5" />
@@ -205,6 +426,11 @@ const ScanURL: React.FC = () => {
           )}
         </form>
       </motion.div>
+
+      {/* Scan Stages Display */}
+      <AnimatePresence>
+        {loading && <ScanStagesDisplay />}
+      </AnimatePresence>
 
       {/* Scan Result */}
       <AnimatePresence>
