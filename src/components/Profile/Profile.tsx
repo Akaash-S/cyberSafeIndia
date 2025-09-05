@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../AuthContext';
+import apiService from '../../services/api';
 import { 
   User, 
   Mail, 
@@ -14,8 +15,7 @@ import {
   Camera,
   Settings,
   Key,
-  Bell,
-  Globe
+  Bell
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -35,6 +35,12 @@ const Profile: React.FC = () => {
       weekly: false
     }
   });
+  const [stats, setStats] = useState({
+    totalScans: 0,
+    safeScans: 0,
+    suspiciousScans: 0,
+    maliciousScans: 0
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -44,7 +50,7 @@ const Profile: React.FC = () => {
     }));
   };
 
-  const handleNotificationChange = (key: string) => {
+  const handleNotificationChange = (key: keyof typeof profileData.notifications) => {
     setProfileData(prev => ({
       ...prev,
       notifications: {
@@ -54,9 +60,64 @@ const Profile: React.FC = () => {
     }));
   };
 
-  const handleSave = () => {
-    // In real app, this would update the user profile
-    setIsEditing(false);
+  // Load user stats
+  const loadUserStats = async () => {
+    if (!user) return;
+
+    try {
+      const response = await apiService.getScanStats(user);
+      if (response.success && response.data) {
+        setStats({
+          totalScans: response.data.totalScans,
+          safeScans: response.data.statusBreakdown.safe,
+          suspiciousScans: response.data.statusBreakdown.suspicious,
+          maliciousScans: response.data.statusBreakdown.malicious
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+    }
+  };
+
+  // Load user profile
+  const loadUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const response = await apiService.getUserProfile(user);
+      if (response.success && response.data) {
+        setProfileData(prev => ({
+          ...prev,
+          displayName: response.data!.displayName || user.displayName || '',
+          email: response.data!.email || user.email || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    loadUserStats();
+    loadUserProfile();
+  }, [user]);
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    try {
+      const response = await apiService.updateUserProfile(profileData.displayName, user);
+      if (response.success) {
+        setIsEditing(false);
+        // Reload profile data
+        loadUserProfile();
+      } else {
+        console.error('Failed to update profile:', response.error);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
   const handleCancel = () => {
@@ -359,7 +420,7 @@ const Profile: React.FC = () => {
               Notifications
             </h3>
             <div className="space-y-3">
-              {Object.entries(profileData.notifications).map(([key, value]) => (
+              {Object.entries(profileData.notifications).map(([key, value]: [string, boolean]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                     {key.replace(/([A-Z])/g, ' $1').trim()}
@@ -368,7 +429,7 @@ const Profile: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={value}
-                      onChange={() => handleNotificationChange(key)}
+                      onChange={() => handleNotificationChange(key as keyof typeof profileData.notifications)}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
@@ -414,15 +475,17 @@ const Profile: React.FC = () => {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Total Scans</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">1,247</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.totalScans}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Threats Blocked</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">89</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Threats Detected</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{stats.maliciousScans + stats.suspiciousScans}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Safe Rate</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">94.2%</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {stats.totalScans > 0 ? Math.round((stats.safeScans / stats.totalScans) * 100) : 0}%
+                </span>
               </div>
             </div>
           </div>

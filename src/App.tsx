@@ -61,8 +61,6 @@ function App() {
               </PrivateRoute>
             } />
 
-
-
             <Route path="/analytics" element={
               <PrivateRoute>
                 <Navbar />

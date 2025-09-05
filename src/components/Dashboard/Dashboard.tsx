@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
-  Filter, 
   Download, 
-  Calendar, 
-  TrendingUp, 
   Shield, 
   AlertTriangle, 
   XCircle,
@@ -13,78 +10,55 @@ import {
   ExternalLink,
   BarChart3
 } from 'lucide-react';
+import { useAuth } from '../../AuthContext';
+import apiService from '../../services/api';
+import type { ScanHistory } from '../../types/api';
 
-interface ScanRecord {
-  id: string;
-  url: string;
-  status: 'safe' | 'suspicious' | 'malicious';
-  confidence: number;
-  timestamp: string;
-  details: {
-    virustotal?: {
-      positives: number;
-      total: number;
-    };
-    abuseipdb?: {
-      abuseConfidence: number;
-    };
-  };
-}
+// Use ScanHistory from apiService instead of local interface
 
 const Dashboard: React.FC = () => {
-  const [scans, setScans] = useState<ScanRecord[]>([]);
-  const [filteredScans, setFilteredScans] = useState<ScanRecord[]>([]);
+  const { user } = useAuth();
+  const [scans, setScans] = useState<ScanHistory[]>([]);
+  const [filteredScans, setFilteredScans] = useState<ScanHistory[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'safe' | 'suspicious' | 'malicious'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
-  // Mock data - in real app, this would come from API
-  useEffect(() => {
-    const mockScans: ScanRecord[] = [
-      {
-        id: '1',
-        url: 'https://example.com',
-        status: 'safe',
-        confidence: 95,
-        timestamp: new Date().toISOString(),
-        details: {
-          virustotal: { positives: 0, total: 67 },
-          abuseipdb: { abuseConfidence: 0 }
-        }
-      },
-      {
-        id: '2',
-        url: 'https://suspicious-site.com',
-        status: 'suspicious',
-        confidence: 65,
-        timestamp: new Date(Date.now() - 86400000).toISOString(),
-        details: {
-          virustotal: { positives: 2, total: 67 },
-          abuseipdb: { abuseConfidence: 25 }
-        }
-      },
-      {
-        id: '3',
-        url: 'https://malicious-site.com',
-        status: 'malicious',
-        confidence: 90,
-        timestamp: new Date(Date.now() - 172800000).toISOString(),
-        details: {
-          virustotal: { positives: 15, total: 67 },
-          abuseipdb: { abuseConfidence: 85 }
-        }
-      }
-    ];
+  // Load scan history from API
+  const loadScanHistory = async () => {
+    if (!user) return;
 
-    setTimeout(() => {
-      setScans(mockScans);
-      setFilteredScans(mockScans);
+    setLoading(true);
+    try {
+      const response = await apiService.getScanHistory(user, {
+        page: currentPage,
+        limit: itemsPerPage,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        sortBy: 'scan_date',
+        sortOrder: 'desc'
+      });
+
+      if (response.success && response.data) {
+        setScans(response.data.scans);
+        setFilteredScans(response.data.scans);
+        setTotalPages(response.data.pagination.totalPages);
+      } else {
+        console.error('Failed to load scan history:', response.error);
+      }
+    } catch (error) {
+      console.error('Error loading scan history:', error);
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
+
+  useEffect(() => {
+    loadScanHistory();
+  }, [user, currentPage, statusFilter]);
 
   // Filter and search logic
   useEffect(() => {
@@ -120,7 +94,7 @@ const Dashboard: React.FC = () => {
       }
 
       filtered = filtered.filter(scan => 
-        new Date(scan.timestamp) >= filterDate
+        new Date(scan.scanDate) >= filterDate
       );
     }
 
@@ -165,12 +139,11 @@ const Dashboard: React.FC = () => {
 
   const exportToCSV = () => {
     const csvContent = [
-      ['URL', 'Status', 'Confidence', 'Timestamp', 'VirusTotal Positives', 'AbuseIPDB Confidence'],
+      ['URL', 'Status', 'Timestamp', 'VirusTotal Positives', 'AbuseIPDB Confidence'],
       ...filteredScans.map(scan => [
         scan.url,
         scan.status,
-        scan.confidence.toString(),
-        new Date(scan.timestamp).toLocaleString(),
+        new Date(scan.scanDate).toLocaleString(),
         scan.details.virustotal?.positives.toString() || '0',
         scan.details.abuseipdb?.abuseConfidence.toString() || '0'
       ])
@@ -188,7 +161,6 @@ const Dashboard: React.FC = () => {
   };
 
   const stats = getStats();
-  const totalPages = Math.ceil(filteredScans.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentScans = filteredScans.slice(startIndex, endIndex);
@@ -354,9 +326,6 @@ const Dashboard: React.FC = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Confidence
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -393,11 +362,8 @@ const Dashboard: React.FC = () => {
                       {scan.status.charAt(0).toUpperCase() + scan.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {scan.confidence}%
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(scan.timestamp).toLocaleDateString()}
+                    {new Date(scan.scanDate).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <motion.button

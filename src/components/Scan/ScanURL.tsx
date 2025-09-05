@@ -1,38 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download } from 'lucide-react';
-import axios from 'axios';
+import { useAuth } from '../../AuthContext';
+import apiService from '../../services/api';
+import type { ScanResult, ScanHistory } from '../../types/api';
 
-interface ScanResult {
-  url: string;
-  status: 'safe' | 'suspicious' | 'malicious';
-  confidence: number;
-  details: {
-    virustotal?: {
-      positives: number;
-      total: number;
-      scan_date: string;
-    };
-    abuseipdb?: {
-      abuseConfidence: number;
-      countryCode: string;
-      usageType: string;
-    };
-    whois?: {
-      registrar: string;
-      creationDate: string;
-      country: string;
-    };
-  };
-  timestamp: string;
-}
+// Remove duplicate interface - using the one from apiService
 
 const ScanURL: React.FC = () => {
+  const { user } = useAuth();
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
-  const [scanHistory, setScanHistory] = useState<ScanResult[]>([]);
+  const [scanHistory, setScanHistory] = useState<ScanHistory[]>([]);
 
   const validateURL = (url: string): boolean => {
     try {
@@ -45,6 +26,11 @@ const ScanURL: React.FC = () => {
 
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      setError('Please log in to scan URLs');
+      return;
+    }
     
     if (!url.trim()) {
       setError('Please enter a URL');
@@ -61,52 +47,41 @@ const ScanURL: React.FC = () => {
     setResult(null);
 
     try {
-      // Simulate API call to backend
-      // In real implementation, this would call your backend API
-      const response = await axios.post('/api/scan', { url });
+      const response = await apiService.scanUrl(url, user);
       
-      const scanResult: ScanResult = {
-        url,
-        status: response.data.status,
-        confidence: response.data.confidence,
-        details: response.data.details,
-        timestamp: new Date().toISOString()
-      };
-
-      setResult(scanResult);
-      setScanHistory(prev => [scanResult, ...prev.slice(0, 9)]); // Keep last 10 scans
+      if (response.success && response.data) {
+        setResult(response.data);
+        // Refresh scan history
+        loadScanHistory();
+      } else {
+        setError(response.error || 'Failed to scan URL');
+      }
     } catch (error: any) {
-      // For demo purposes, create a mock result
-      const mockResult: ScanResult = {
-        url,
-        status: Math.random() > 0.7 ? 'malicious' : Math.random() > 0.4 ? 'suspicious' : 'safe',
-        confidence: Math.floor(Math.random() * 40) + 60,
-        details: {
-          virustotal: {
-            positives: Math.floor(Math.random() * 5),
-            total: 67,
-            scan_date: new Date().toISOString()
-          },
-          abuseipdb: {
-            abuseConfidence: Math.floor(Math.random() * 100),
-            countryCode: 'IN',
-            usageType: 'hosting'
-          },
-          whois: {
-            registrar: 'Example Registrar',
-            creationDate: '2020-01-01',
-            country: 'India'
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      setResult(mockResult);
-      setScanHistory(prev => [mockResult, ...prev.slice(0, 9)]);
+      console.error('Scan error:', error);
+      setError('An error occurred while scanning the URL');
     } finally {
       setLoading(false);
     }
   };
+
+  // Load scan history
+  const loadScanHistory = async () => {
+    if (!user) return;
+
+    try {
+      const response = await apiService.getScanHistory(user, { limit: 10 });
+      if (response.success && response.data) {
+        setScanHistory(response.data.scans);
+      }
+    } catch (error) {
+      console.error('Error loading scan history:', error);
+    }
+  };
+
+  // Load scan history on component mount
+  useEffect(() => {
+    loadScanHistory();
+  }, [user]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -145,7 +120,7 @@ const ScanURL: React.FC = () => {
       url: result.url,
       status: result.status,
       confidence: result.confidence,
-      timestamp: result.timestamp,
+      scanDate: result.scanDate,
       details: result.details
     };
 
@@ -274,7 +249,7 @@ const ScanURL: React.FC = () => {
                       {result.url}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Scanned on {new Date(result.timestamp).toLocaleString()}
+                      Scanned on {new Date(result.scanDate).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -289,7 +264,7 @@ const ScanURL: React.FC = () => {
               </div>
 
               {/* Details */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {result.details.virustotal && (
                   <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg">
                     <h3 className="font-medium text-gray-900 dark:text-white mb-2">
@@ -297,10 +272,10 @@ const ScanURL: React.FC = () => {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600 dark:text-gray-400">
-                        Detections: {result.details.virustotal.positives}/{result.details.virustotal.total}
+                        Status: {result.details.virustotal.data?.attributes?.last_analysis_stats?.malicious || 0} malicious detections
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Last Scan: {new Date(result.details.virustotal.scan_date).toLocaleDateString()}
+                        Total Engines: {Object.keys(result.details.virustotal.data?.attributes?.last_analysis_results || {}).length}
                       </p>
                     </div>
                   </div>
@@ -313,32 +288,13 @@ const ScanURL: React.FC = () => {
                     </h3>
                     <div className="space-y-1 text-sm">
                       <p className="text-gray-600 dark:text-gray-400">
-                        Abuse Confidence: {result.details.abuseipdb.abuseConfidence}%
+                        Abuse Confidence: {result.details.abuseipdb.data?.abuseConfidencePercentage || 0}%
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Country: {result.details.abuseipdb.countryCode}
+                        Country: {result.details.abuseipdb.data?.countryCode || 'Unknown'}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Usage: {result.details.abuseipdb.usageType}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {result.details.whois && (
-                  <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg">
-                    <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-                      WHOIS
-                    </h3>
-                    <div className="space-y-1 text-sm">
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Registrar: {result.details.whois.registrar}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Created: {new Date(result.details.whois.creationDate).toLocaleDateString()}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Country: {result.details.whois.country}
+                        Total Reports: {result.details.abuseipdb.data?.totalReports || 0}
                       </p>
                     </div>
                   </div>
@@ -376,7 +332,7 @@ const ScanURL: React.FC = () => {
                       {scan.url}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {new Date(scan.timestamp).toLocaleString()}
+                      {new Date(scan.scanDate).toLocaleString()}
                     </p>
                   </div>
                 </div>
