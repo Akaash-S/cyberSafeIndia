@@ -59,9 +59,28 @@ export const registerUserWithBackend = async (firebaseUser: User): Promise<Backe
       console.log('User successfully registered with backend!');
       return result.data;
     } else {
-      console.error('Backend registration failed:', result.error);
-      console.error('Request payload was:', userData);
-      return null;
+      // Handle specific error cases
+      if (response.status === 409) {
+        console.log('User already exists, returning existing user data');
+        // Show friendly toast notification
+        if (typeof window !== 'undefined') {
+          // Import toast dynamically to avoid SSR issues
+          import('../utils/toast').then(({ toast }) => {
+            toast.info('Welcome back! Your account is already set up.');
+          });
+        }
+        return result.data; // Return the existing user data instead of null
+      } else {
+        console.error('Backend registration failed:', result.message || result.error);
+        console.error('Request payload was:', userData);
+        // Show error toast
+        if (typeof window !== 'undefined') {
+          import('../utils/toast').then(({ toast }) => {
+            toast.error(result.message || 'Failed to register with backend. Please try again.');
+          });
+        }
+        return null;
+      }
     }
   } catch (error) {
     console.error('Error registering user with backend:', error);

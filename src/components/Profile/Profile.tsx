@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase';
 import QRCode from 'qrcode';
+import { throttle } from '../../utils/throttle';
+import { toast } from '../../utils/toast';
 import type { ScanHistory, ScanStatsResponse, ThreatReportItem } from '../../types/api';
 import { 
   User, 
@@ -141,8 +143,8 @@ const Profile: React.FC = () => {
   };
 
 
-  // Load user stats
-  const loadUserStats = useCallback(async () => {
+  // Load user stats (internal function)
+  const loadUserStatsInternal = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -176,6 +178,7 @@ const Profile: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('Error loading user stats:', error);
+      toast.error('Failed to load user statistics. Please try again.');
       // Set default values on error
       setStats(prev => ({
         ...prev,
@@ -192,8 +195,14 @@ const Profile: React.FC = () => {
     }
   }, [user]);
 
-  // Load recent activity
-  const loadRecentActivity = useCallback(async () => {
+  // Throttled version - max once every 30 seconds
+  const loadUserStats = useMemo(
+    () => throttle(loadUserStatsInternal, 30000),
+    [loadUserStatsInternal]
+  );
+
+  // Load recent activity (internal function)
+  const loadRecentActivityInternal = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -211,8 +220,15 @@ const Profile: React.FC = () => {
       }
     } catch (error: unknown) {
       console.error('Error loading recent activity:', error);
+      toast.error('Failed to load recent activity. Please try again.');
     }
   }, [user]);
+
+  // Throttled version - max once every 15 seconds
+  const loadRecentActivity = useMemo(
+    () => throttle(loadRecentActivityInternal, 15000),
+    [loadRecentActivityInternal]
+  );
 
   // Load devices
   const loadDevices = useCallback(() => {
@@ -284,7 +300,10 @@ const Profile: React.FC = () => {
 
   // Load user profile
   const loadUserProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('loadUserProfile: No user available');
+      return;
+    }
 
     try {
       const response = await apiService.getUserProfile(user);
@@ -302,7 +321,10 @@ const Profile: React.FC = () => {
 
   // Load notification settings
   const loadNotificationSettings = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('loadNotificationSettings: No user available');
+      return;
+    }
     
     try {
       const response = await apiService.getNotificationPreferences(user);
@@ -327,13 +349,16 @@ const Profile: React.FC = () => {
 
   // Load data on component mount
   useEffect(() => {
-    loadUserStats();
-    loadUserProfile();
-    loadRecentActivity();
-    loadDevices();
-    loadAchievements();
-    loadNotificationSettings();
-  }, [user, loadUserStats, loadUserProfile, loadRecentActivity, loadDevices, loadAchievements, loadNotificationSettings]);
+    // Only make API calls if user is authenticated and not loading
+    if (user && !authLoading) {
+      loadUserStats();
+      loadUserProfile();
+      loadRecentActivity();
+      loadDevices();
+      loadAchievements();
+      loadNotificationSettings();
+    }
+  }, [user, authLoading, loadUserStats, loadUserProfile, loadRecentActivity, loadDevices, loadAchievements, loadNotificationSettings]);
 
   // Reload achievements when stats change
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { auth, googleProvider } from '../../firebase';
@@ -11,6 +11,23 @@ const AuthPage: React.FC = () => {
   const [error, setError] = React.useState('');
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+
+  // Check for redirect result on component mount
+  React.useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          console.log('Redirect authentication successful:', result.user.email);
+          navigate('/', { replace: true });
+        }
+      } catch (error) {
+        console.error('Redirect authentication error:', error);
+      }
+    };
+
+    checkRedirectResult();
+  }, [navigate]);
 
   // Redirect authenticated users to home page
   React.useEffect(() => {
@@ -41,11 +58,41 @@ const AuthPage: React.FC = () => {
     setError('');
 
     try {
-      await signInWithPopup(auth, googleProvider);
-      // Redirect to home page after successful authentication
-      navigate('/', { replace: true });
+      // Try popup first, fallback to redirect if popup fails
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      // Verify the popup was closed properly
+      if (result.user) {
+        console.log('Authentication successful:', result.user.email);
+        // Redirect to home page after successful authentication
+        navigate('/', { replace: true });
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error('Popup authentication error:', error);
+      
+      // Handle specific Firebase auth errors
+      if (error instanceof Error) {
+        if (error.message.includes('popup-closed-by-user')) {
+          setError('Sign-in was cancelled. Please try again.');
+        } else if (error.message.includes('popup-blocked') || error.message.includes('popup-closed')) {
+          // Fallback to redirect authentication
+          try {
+            setError('Popup blocked. Redirecting to Google sign-in...');
+            await signInWithRedirect(auth, googleProvider);
+            // The redirect will handle the rest
+            return;
+          } catch (redirectError) {
+            console.error('Redirect authentication error:', redirectError);
+            setError('Authentication failed. Please try again.');
+          }
+        } else if (error.message.includes('network-request-failed')) {
+          setError('Network error. Please check your internet connection and try again.');
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

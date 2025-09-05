@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
+import { throttle } from '../../utils/throttle';
+import { toast } from '../../utils/toast';
 import type { ScanHistory } from '../../types/api';
 
 // Type for VirusTotal data structure
@@ -43,8 +45,8 @@ const Dashboard: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 10;
 
-  // Load scan history from API
-  const loadScanHistory = useCallback(async () => {
+  // Load scan history from API (internal function)
+  const loadScanHistoryInternal = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -63,13 +65,21 @@ const Dashboard: React.FC = () => {
         setTotalPages(response.data.pagination.totalPages);
       } else {
         console.error('Failed to load scan history:', response.error);
+        toast.error(response.error || 'Failed to load scan history');
       }
     } catch (error) {
       console.error('Error loading scan history:', error);
+      toast.error('Failed to load scan history. Please try again.');
     } finally {
       setLoading(false);
     }
   }, [user, currentPage, statusFilter]);
+
+  // Throttled version - max once every 10 seconds
+  const loadScanHistory = useMemo(
+    () => throttle(loadScanHistoryInternal, 10000),
+    [loadScanHistoryInternal]
+  );
 
   useEffect(() => {
     loadScanHistory();

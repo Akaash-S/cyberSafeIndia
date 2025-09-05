@@ -10,6 +10,7 @@ import ScanURL from './components/Scan/ScanURL';
 import Dashboard from './components/Dashboard/Dashboard';
 import Analytics from './components/Analytics/Analytics';
 import Profile from './components/Profile/Profile';
+import ToastComponent from './components/Toast/Toast';
 
 // Component to handle home route - show home for unauthenticated users, redirect authenticated users
 const HomeRoute: React.FC = () => {
@@ -79,6 +80,7 @@ function App() {
             {/* Redirect to home for unknown routes */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <ToastComponent />
         </div>
       </Router>
     </AuthProvider>
