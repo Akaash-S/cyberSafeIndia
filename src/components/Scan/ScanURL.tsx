@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2, Flag, Eye, FileSpreadsheet } from 'lucide-react';
+import { Search, AlertTriangle, CheckCircle, XCircle, ExternalLink, Copy, Download, Shield, Database, Globe, Clock, CheckCircle2, Flag, FileSpreadsheet } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import type { ScanResult, ScanHistory } from '../../types/api';

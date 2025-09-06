@@ -21,7 +21,6 @@ import {
   X,
   Camera,
   Settings,
-  Key,
   Bell,
   Activity,
   BarChart3,
