@@ -5,22 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CyberSafe India</title>
   <style>
-    * {
+    body {
+      width: 350px;
+      min-height: 400px;
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      width: 380px;
-      min-height: 500px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
     }
     
     .container {
       padding: 20px;
+      color: white;
     }
     
     .header {
@@ -29,154 +25,76 @@
     }
     
     .logo {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       background: rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 12px;
-      font-size: 24px;
-      backdrop-filter: blur(10px);
+      margin: 0 auto 10px;
+      font-size: 20px;
     }
     
     .title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       margin: 0;
     }
     
     .subtitle {
-      font-size: 13px;
+      font-size: 12px;
       opacity: 0.8;
       margin: 5px 0 0;
-    }
-
-    .auth-section {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      backdrop-filter: blur(10px);
-    }
-
-    .auth-status {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .auth-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .auth-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-    }
-
-    .auth-name {
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .auth-button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .auth-button:hover {
-      background: rgba(255, 255, 255, 0.3);
     }
     
     .scan-section {
       background: rgba(255, 255, 255, 0.1);
       border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      backdrop-filter: blur(10px);
-    }
-
-    .scan-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
     }
     
     .url-input {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       background: rgba(255, 255, 255, 0.9);
       color: #333;
       font-size: 14px;
-      margin-bottom: 12px;
-      transition: background 0.2s;
-    }
-
-    .url-input:focus {
-      outline: none;
-      background: white;
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+      margin-bottom: 10px;
+      box-sizing: border-box;
     }
     
     .scan-button {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       background: #22c55e;
       color: white;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: bold;
       cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      transition: background 0.2s;
     }
     
-    .scan-button:hover:not(:disabled) {
+    .scan-button:hover {
       background: #16a34a;
-      transform: translateY(-1px);
     }
     
     .scan-button:disabled {
       background: #6b7280;
       cursor: not-allowed;
-      transform: none;
-    }
-
-    .scan-icon {
-      width: 16px;
-      height: 16px;
     }
     
     .result {
       background: rgba(255, 255, 255, 0.1);
       border-radius: 8px;
-      padding: 16px;
-      margin-top: 12px;
+      padding: 12px;
+      margin-top: 10px;
       display: none;
-      backdrop-filter: blur(10px);
     }
     
     .result.show {
@@ -194,42 +112,26 @@
     .result.malicious {
       border-left: 4px solid #ef4444;
     }
-
-    .result.error {
-      border-left: 4px solid #6b7280;
-    }
-    
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .result-icon {
-      width: 20px;
-      height: 20px;
-    }
     
     .result-title {
-      font-weight: 600;
-      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
     }
     
     .result-details {
       font-size: 12px;
       opacity: 0.9;
-      line-height: 1.4;
     }
-
-    .result-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
+    
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
     }
-
-    .result-action {
-      padding: 6px 12px;
+    
+    .action-button {
+      padding: 8px;
       border: none;
       border-radius: 6px;
       background: rgba(255, 255, 255, 0.2);
@@ -238,49 +140,15 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-
-    .result-action:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
-    
-    .quick-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 16px;
-    }
-    
-    .action-button {
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      backdrop-filter: blur(10px);
-    }
     
     .action-button:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-1px);
-    }
-
-    .action-icon {
-      width: 20px;
-      height: 20px;
+      background: rgba(255, 255, 255, 0.3);
     }
     
     .loading {
       display: none;
       text-align: center;
-      padding: 16px;
+      padding: 10px;
     }
     
     .loading.show {
@@ -288,58 +156,18 @@
     }
     
     .spinner {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-top: 2px solid white;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto 8px;
+      margin: 0 auto 5px;
     }
     
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
-    }
-
-    .stats {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 16px;
-      backdrop-filter: blur(10px);
-    }
-
-    .stats-title {
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      opacity: 0.8;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-    }
-
-    .stat-item {
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 16px;
-      font-weight: bold;
-      display: block;
-    }
-
-    .stat-label {
-      font-size: 10px;
-      opacity: 0.7;
-    }
-
-    .hidden {
-      display: none !important;
     }
   </style>
 </head>
@@ -350,22 +178,8 @@
       <h1 class="title">CyberSafe India</h1>
       <p class="subtitle">URL Security Scanner</p>
     </div>
-
-    <!-- Authentication Section -->
-    <div class="auth-section" id="authSection">
-      <div class="auth-status">
-        <div class="auth-info" id="authInfo">
-          <div class="auth-avatar" id="authAvatar">👤</div>
-          <div>
-            <div class="auth-name" id="authName">Not signed in</div>
-          </div>
-        </div>
-        <button class="auth-button" id="authButton">Sign In</button>
-      </div>
-    </div>
     
     <div class="scan-section">
-      <div class="scan-title">🔍 Scan URL</div>
       <input 
         type="url" 
         id="urlInput" 
@@ -374,64 +188,27 @@
         value=""
       />
       <button id="scanButton" class="scan-button">
-        <svg class="scan-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M9.5 6.5v3h-3v-3h3M11 5H5v6h6V5zm-1.5 9.5v3h-3v-3h3M11 13H5v6h6v-6zm6.5-6.5v3h-3v-3h3M19 5h-6v6h6V5zm-6.5 9.5v3h-3v-3h3M19 13h-6v6h6v-6z"/>
-        </svg>
-        <span>Scan URL</span>
+        Scan URL
       </button>
       
       <div id="loading" class="loading">
         <div class="spinner"></div>
-        <div>Scanning for threats...</div>
+        <div>Scanning...</div>
       </div>
       
       <div id="result" class="result">
-        <div class="result-header">
-          <svg class="result-icon" id="resultIcon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-          </svg>
-          <div class="result-title" id="resultTitle"></div>
-        </div>
+        <div class="result-title" id="resultTitle"></div>
         <div class="result-details" id="resultDetails"></div>
-        <div class="result-actions" id="resultActions">
-          <button class="result-action" id="viewDetails">View Details</button>
-          <button class="result-action" id="reportUrl">Report</button>
-        </div>
       </div>
     </div>
     
     <div class="quick-actions">
       <button id="scanCurrent" class="action-button">
-        <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-        </svg>
-        <span>Scan Current Page</span>
+        Scan Current Page
       </button>
       <button id="openDashboard" class="action-button">
-        <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-        </svg>
-        <span>Dashboard</span>
+        Open Dashboard
       </button>
-    </div>
-
-    <!-- Stats Section -->
-    <div class="stats" id="statsSection">
-      <div class="stats-title">Today's Scans</div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <span class="stat-number" id="totalScans">0</span>
-          <span class="stat-label">Total</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number" id="safeScans">0</span>
-          <span class="stat-label">Safe</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-number" id="threatScans">0</span>
-          <span class="stat-label">Threats</span>
-        </div>
-      </div>
     </div>
   </div>
   

@@ -25,7 +25,8 @@
               email: user.email,
               displayName: user.displayName,
               photoURL: user.photoURL
-            }
+            },
+            token: user.accessToken || null
           };
         }
       }
@@ -34,22 +35,39 @@
       const authData = localStorage.getItem('cybersafe-auth-data');
       if (authData) {
         const parsed = JSON.parse(authData);
-        return {
-          isAuthenticated: true,
-          user: parsed.user,
-          token: parsed.token
-        };
+        if (parsed.user && parsed.token) {
+          return {
+            isAuthenticated: true,
+            user: parsed.user,
+            token: parsed.token
+          };
+        }
       }
 
       // Check for auth state in sessionStorage
       const sessionAuthData = sessionStorage.getItem('cybersafe-auth-data');
       if (sessionAuthData) {
         const parsed = JSON.parse(sessionAuthData);
-        return {
-          isAuthenticated: true,
-          user: parsed.user,
-          token: parsed.token
-        };
+        if (parsed.user && parsed.token) {
+          return {
+            isAuthenticated: true,
+            user: parsed.user,
+            token: parsed.token
+          };
+        }
+      }
+
+      // Check for React context auth state
+      const reactAuthData = localStorage.getItem('cybersafe-react-auth');
+      if (reactAuthData) {
+        const parsed = JSON.parse(reactAuthData);
+        if (parsed.user && parsed.token) {
+          return {
+            isAuthenticated: true,
+            user: parsed.user,
+            token: parsed.token
+          };
+        }
       }
 
       return { isAuthenticated: false };

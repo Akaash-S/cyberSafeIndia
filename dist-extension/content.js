@@ -1,476 +1,133 @@
-// CyberSafe India Extension - Content Script
-// Injects security indicators and protection features into web pages
-
-// Configuration
-const CONFIG = {
-  indicatorPosition: 'top-right',
-  autoHideDelay: 5000,
-  highlightExternalLinks: true,
-  showShortenedUrlWarnings: true,
-  suspiciousDomains: [
-    'bit.ly', 'tinyurl.com', 'short.link', 't.co', 'goo.gl',
-    'ow.ly', 'is.gd', 'v.gd', 'shorturl.at', 'rebrand.ly'
-  ]
-};
-
-// State
-let securityIndicator = null;
-let isScanning = false;
-let currentPageStatus = null;
-
-// Initialize content script
-function init() {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-    return;
-  }
-
-  // Inject security indicator
-  injectSecurityIndicator();
-  
-  // Check page security
-  checkPageSecurity();
-  
-  // Setup link protection
-  setupLinkProtection();
-  
-  // Setup external link highlighting
-  if (CONFIG.highlightExternalLinks) {
-    highlightExternalLinks();
-  }
-  
-  // Setup mutation observer for dynamic content
-  setupMutationObserver();
-  
-  // Listen for messages from background script
-  chrome.runtime.onMessage.addListener(handleMessage);
-}
-
-// Inject security indicator into page
-function injectSecurityIndicator() {
-  if (document.getElementById('cybersafe-indicator')) {
-    return;
-  }
-
-  const indicator = document.createElement('div');
-  indicator.id = 'cybersafe-indicator';
-  indicator.style.cssText = `
+const u=`
+  .cybersafe-indicator {
     position: fixed;
     top: 20px;
     right: 20px;
     z-index: 2147483647;
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
     padding: 12px 16px;
-    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 13px;
+    font-size: 14px;
+    max-width: 300px;
+    animation: slideIn 0.3s ease;
+  }
+  
+  .cybersafe-indicator.safe {
+    border-color: #10b981;
+    background: #f0fdf4;
+  }
+  
+  .cybersafe-indicator.suspicious {
+    border-color: #f59e0b;
+    background: #fffbeb;
+  }
+  
+  .cybersafe-indicator.malicious {
+    border-color: #ef4444;
+    background: #fef2f2;
+  }
+  
+  .cybersafe-indicator .icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  
+  .cybersafe-indicator .text {
+    display: inline-block;
+    vertical-align: middle;
     font-weight: 500;
-    display: none;
+  }
+  
+  .cybersafe-indicator .close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 16px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    max-width: 200px;
-    word-wrap: break-word;
-  `;
-
-  // Add click handler to open popup
-  indicator.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'openPopup' });
-  });
-
-  // Add hover effects
-  indicator.addEventListener('mouseenter', () => {
-    indicator.style.transform = 'translateY(-2px)';
-    indicator.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
-  });
-
-  indicator.addEventListener('mouseleave', () => {
-    indicator.style.transform = 'translateY(0)';
-    indicator.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-  });
-
-  document.body.appendChild(indicator);
-  securityIndicator = indicator;
-}
-
-// Check page security status
-async function checkPageSecurity() {
-  const url = window.location.href;
-  
-  // Skip extension and browser pages
-  if (isExtensionUrl(url) || isBrowserUrl(url)) {
-    return;
-  }
-
-  try {
-    isScanning = true;
-    showSecurityIndicator('scanning', '🔍 Scanning...');
-
-    // Send message to background script for scanning
-    const response = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'scanUrl', url }, (response) => {
-        resolve(response);
-      });
-    });
-
-    if (response && !response.error) {
-      currentPageStatus = response.status;
-      showSecurityIndicator(response.status, response.title);
-    } else {
-      showSecurityIndicator('error', '❌ Scan failed');
-    }
-  } catch (error) {
-    console.error('Security check failed:', error);
-    showSecurityIndicator('error', '❌ Scan failed');
-  } finally {
-    isScanning = false;
-  }
-}
-
-// Show security indicator
-function showSecurityIndicator(status, message) {
-  if (!securityIndicator) return;
-
-  let color, icon;
-  
-  switch (status) {
-    case 'safe':
-      color = '#22c55e';
-      icon = '🛡️';
-      break;
-    case 'suspicious':
-      color = '#f59e0b';
-      icon = '⚠️';
-      break;
-    case 'malicious':
-      color = '#ef4444';
-      icon = '🚨';
-      break;
-    case 'scanning':
-      color = '#3b82f6';
-      icon = '🔍';
-      break;
-    case 'error':
-      color = '#6b7280';
-      icon = '❌';
-      break;
-    default:
-      color = '#6b7280';
-      icon = '❓';
-  }
-
-  securityIndicator.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <span style="font-size: 16px;">${icon}</span>
-      <span>${message}</span>
-    </div>
-  `;
-  securityIndicator.style.backgroundColor = color;
-  securityIndicator.style.display = 'block';
-
-  // Auto-hide for safe URLs
-  if (status === 'safe') {
-    setTimeout(() => {
-      if (securityIndicator && currentPageStatus === 'safe') {
-        securityIndicator.style.display = 'none';
-      }
-    }, CONFIG.autoHideDelay);
-  }
-}
-
-// Setup link protection
-function setupLinkProtection() {
-  document.addEventListener('click', handleLinkClick, true);
-}
-
-// Handle link clicks
-function handleLinkClick(event) {
-  const link = event.target.closest('a');
-  if (!link || !link.href) return;
-
-  const url = new URL(link.href);
-  
-  // Check for shortened URLs
-  if (CONFIG.showShortenedUrlWarnings && isShortenedUrl(url.hostname)) {
-    event.preventDefault();
-    showShortenedUrlWarning(link.href, () => {
-      window.open(link.href, '_blank', 'noopener,noreferrer');
-    });
-    return;
-  }
-
-  // Check for suspicious domains
-  if (isSuspiciousDomain(url.hostname)) {
-    event.preventDefault();
-    showSuspiciousUrlWarning(link.href, () => {
-      window.open(link.href, '_blank', 'noopener,noreferrer');
-    });
-    return;
-  }
-}
-
-// Check if URL is shortened
-function isShortenedUrl(hostname) {
-  return CONFIG.suspiciousDomains.some(domain => 
-    hostname.includes(domain) || hostname.endsWith('.' + domain)
-  );
-}
-
-// Check if domain is suspicious
-function isSuspiciousDomain(hostname) {
-  // Add your suspicious domain patterns here
-  const suspiciousPatterns = [
-    /^[a-z0-9]{1,10}\.[a-z]{2,3}$/, // Very short domains
-    /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/, // IP addresses
-  ];
-  
-  return suspiciousPatterns.some(pattern => pattern.test(hostname));
-}
-
-// Show shortened URL warning
-function showShortenedUrlWarning(url, onContinue) {
-  const warning = createWarningModal(
-    '⚠️ Shortened URL Detected',
-    'This appears to be a shortened URL. Shortened URLs can hide the real destination and may be used for malicious purposes.',
-    url,
-    onContinue
-  );
-  
-  document.body.appendChild(warning);
-}
-
-// Show suspicious URL warning
-function showSuspiciousUrlWarning(url, onContinue) {
-  const warning = createWarningModal(
-    '🚨 Suspicious URL Detected',
-    'This URL appears suspicious based on its domain pattern. Proceed with caution.',
-    url,
-    onContinue
-  );
-  
-  document.body.appendChild(warning);
-}
-
-// Create warning modal
-function createWarningModal(title, message, url, onContinue) {
-  const modal = document.createElement('div');
-  modal.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 2147483647;
+    color: #6b7280;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
-
-  const content = document.createElement('div');
-  content.style.cssText = `
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    text-align: center;
-  `;
-
-  const titleEl = document.createElement('h3');
-  titleEl.textContent = title;
-  titleEl.style.cssText = `
-    margin: 0 0 16px 0;
-    color: #f59e0b;
-    font-size: 18px;
-    font-weight: 600;
-  `;
-
-  const messageEl = document.createElement('p');
-  messageEl.textContent = message;
-  messageEl.style.cssText = `
-    margin: 0 0 16px 0;
-    color: #333;
-    line-height: 1.5;
-  `;
-
-  const urlEl = document.createElement('div');
-  urlEl.textContent = url;
-  urlEl.style.cssText = `
-    background: #f3f4f6;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 12px;
-    color: #666;
-    word-break: break-all;
-    margin: 0 0 20px 0;
-  `;
-
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.cssText = `
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-  `;
-
-  const continueBtn = document.createElement('button');
-  continueBtn.textContent = 'Continue';
-  continueBtn.style.cssText = `
-    background: #f59e0b;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-  `;
-  continueBtn.addEventListener('click', () => {
-    document.body.removeChild(modal);
-    onContinue();
-  });
-  continueBtn.addEventListener('mouseenter', () => {
-    continueBtn.style.background = '#d97706';
-  });
-  continueBtn.addEventListener('mouseleave', () => {
-    continueBtn.style.background = '#f59e0b';
-  });
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.style.cssText = `
-    background: #6b7280;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-  `;
-  cancelBtn.addEventListener('click', () => {
-    document.body.removeChild(modal);
-  });
-  cancelBtn.addEventListener('mouseenter', () => {
-    cancelBtn.style.background = '#4b5563';
-  });
-  cancelBtn.addEventListener('mouseleave', () => {
-    cancelBtn.style.background = '#6b7280';
-  });
-
-  buttonContainer.appendChild(continueBtn);
-  buttonContainer.appendChild(cancelBtn);
-
-  content.appendChild(titleEl);
-  content.appendChild(messageEl);
-  content.appendChild(urlEl);
-  content.appendChild(buttonContainer);
-  modal.appendChild(content);
-
-  return modal;
-}
-
-// Highlight external links
-function highlightExternalLinks() {
-  const links = document.querySelectorAll('a[href]');
+  }
   
-  links.forEach(link => {
-    const href = link.getAttribute('href');
-    
-    if (href && (href.startsWith('http') || href.startsWith('//'))) {
-      try {
-        const url = new URL(href, window.location.origin);
-        
-        // Add visual indicator for external links
-        if (url.hostname !== window.location.hostname) {
-          link.style.position = 'relative';
-          
-          // Add small icon if not already present
-          if (!link.querySelector('.cybersafe-external-icon')) {
-            const icon = document.createElement('span');
-            icon.className = 'cybersafe-external-icon';
-            icon.textContent = '🔗';
-            icon.style.cssText = `
-              position: absolute;
-              top: -2px;
-              right: -2px;
-              font-size: 10px;
-              background: rgba(0, 0, 0, 0.7);
-              color: white;
-              border-radius: 50%;
-              width: 14px;
-              height: 14px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 1000;
-              pointer-events: none;
-            `;
-            link.appendChild(icon);
-          }
-        }
-      } catch (error) {
-        // Invalid URL, skip
-      }
+  .cybersafe-indicator .close:hover {
+    color: #374151;
+  }
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
     }
-  });
-}
-
-// Setup mutation observer for dynamic content
-function setupMutationObserver() {
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList') {
-        // Re-highlight external links for new content
-        if (CONFIG.highlightExternalLinks) {
-          highlightExternalLinks();
-        }
-      }
-    });
-  });
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
   
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-}
-
-// Handle messages from background script
-function handleMessage(request, sender, sendResponse) {
-  if (request.action === 'updateSecurityStatus') {
-    currentPageStatus = request.status;
-    showSecurityIndicator(request.status, request.message);
-  } else if (request.action === 'showNotification') {
-    showNotification(request.title, request.message, request.type);
+  .cybersafe-warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #fef2f2;
+    border-bottom: 2px solid #ef4444;
+    padding: 12px 20px;
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    text-align: center;
+    color: #dc2626;
+    font-weight: 500;
   }
-}
-
-// Listen for auth sync messages from the website
-window.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CYBERSAFE_AUTH_SYNC' && event.data.source === 'cybersafe-website') {
-    // Forward auth sync to background script
-    chrome.runtime.sendMessage({
-      action: 'authSync',
-      data: event.data.data
-    });
+  
+  .cybersafe-warning .close {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #dc2626;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-});
-
-// Show notification
-function showNotification(title, message, type = 'info') {
-  const notification = document.createElement('div');
-  notification.style.cssText = `
+`,l=document.createElement("style");l.textContent=u;document.head.appendChild(l);let r=null;function c(){console.log("CyberSafe India content script loaded"),!(window.location.href.includes("chrome-extension://")&&window.location.href.includes("blocked.html"))&&(m(),p(),v())}async function p(){try{const e=await chrome.runtime.sendMessage({action:"scanUrl",url:window.location.href});e&&!e.error&&d(e.status,e.title||"Page analyzed")}catch(e){console.error("Error checking page security:",e)}}function d(e,o){r&&r.remove(),r=document.createElement("div"),r.className=`cybersafe-indicator ${e}`;const t=h(e),n=document.createElement("button");n.className="close",n.innerHTML="×",n.onclick=()=>{r&&(r.remove(),r=null)},r.innerHTML=`
+    ${t}
+    <span class="text">${o}</span>
+  `,r.appendChild(n),document.body.appendChild(r),e==="safe"&&setTimeout(()=>{r&&(r.remove(),r=null)},5e3)}function h(e){switch(e){case"safe":return'<svg class="icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';case"suspicious":return'<svg class="icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>';case"malicious":return'<svg class="icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';default:return'<svg class="icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>'}}function m(){b(),new MutationObserver(o=>{o.forEach(t=>{t.addedNodes.forEach(n=>{if(n.nodeType===Node.ELEMENT_NODE){const i=n;i.tagName==="A"?s(i):i.querySelectorAll("a").forEach(s)}})})}).observe(document.body,{childList:!0,subtree:!0})}function b(){document.querySelectorAll("a[href]").forEach(o=>s(o))}function s(e){const o=e.href;if(!(!o||o.startsWith("javascript:")||o.startsWith("mailto:")||o.startsWith("tel:"))){if(g(o)){e.addEventListener("click",t=>{t.preventDefault(),a(e,"This appears to be a shortened URL. Would you like to scan it first?")});return}if(y(o)){e.addEventListener("click",t=>{t.preventDefault(),a(e,"This URL looks suspicious. Would you like to scan it first?")});return}x(o)&&(e.style.borderBottom="1px dashed #f59e0b",e.title="External link - click to scan",e.addEventListener("click",t=>{t.preventDefault(),a(e,"This is an external link. Would you like to scan it first?")}))}}function g(e){const o=["bit.ly","tinyurl.com","short.link","t.co","goo.gl","ow.ly","is.gd","v.gd","shorturl.at","rebrand.ly","cutt.ly","short.cm"];try{const t=new URL(e).hostname.toLowerCase();return o.some(n=>t.includes(n))}catch{return!1}}function y(e){return[/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/,/[a-z0-9-]+\.tk$/,/[a-z0-9-]+\.ml$/,/[a-z0-9-]+\.ga$/,/[a-z0-9-]+\.cf$/].some(t=>t.test(e.toLowerCase()))}function x(e){try{const o=new URL(e).hostname,t=window.location.hostname;return o!==t}catch{return!1}}function a(e,o){const t=document.createElement("div");t.className="cybersafe-warning",t.innerHTML=`
+    ${o}
+    <button class="close" onclick="this.parentElement.remove()">×</button>
+  `;const n=document.createElement("button");n.textContent="Scan URL",n.style.cssText=`
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-left: 12px;
+    cursor: pointer;
+    font-size: 14px;
+  `,n.onclick=async()=>{try{const i=await chrome.runtime.sendMessage({action:"scanUrl",url:e.href});i&&!i.error&&(i.status==="safe"?window.open(e.href,"_blank"):alert(`Warning: ${i.title||"This URL may be unsafe"}`))}catch(i){console.error("Error scanning URL:",i)}t.remove()},t.appendChild(n),document.body.insertBefore(t,document.body.firstChild)}function v(){new MutationObserver(o=>{o.forEach(t=>{t.type==="childList"&&t.addedNodes.forEach(n=>{if(n.nodeType===Node.ELEMENT_NODE){const i=n;i.tagName==="A"?s(i):i.querySelectorAll("a").forEach(s)}})})}).observe(document.body,{childList:!0,subtree:!0})}function w(e){e.action==="updateSecurityStatus"?d(e.status,e.message):e.action==="showNotification"&&k(e.title,e.message,e.type)}function k(e,o,t="info"){const n=document.createElement("div");n.style.cssText=`
     position: fixed;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#22c55e'};
+    background: ${t==="error"?"#ef4444":t==="warning"?"#f59e0b":"#22c55e"};
     color: white;
     padding: 12px 20px;
     border-radius: 8px;
@@ -481,36 +138,7 @@ function showNotification(title, message, type = 'info') {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     max-width: 400px;
     text-align: center;
-  `;
-  
-  notification.innerHTML = `
-    <div style="font-weight: 600; margin-bottom: 4px;">${title}</div>
-    <div>${message}</div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    if (document.body.contains(notification)) {
-      document.body.removeChild(notification);
-    }
-  }, 5000);
-}
-
-// Check if URL is extension URL
-function isExtensionUrl(url) {
-  return url.startsWith('chrome-extension://') || 
-         url.startsWith('moz-extension://') ||
-         url.startsWith('edge://');
-}
-
-// Check if URL is browser URL
-function isBrowserUrl(url) {
-  return url.startsWith('chrome://') || 
-         url.startsWith('about:') ||
-         url.startsWith('file://');
-}
-
-// Start the content script
-init();
+  `,n.innerHTML=`
+    <div style="font-weight: 600; margin-bottom: 4px;">${e}</div>
+    <div>${o}</div>
+  `,document.body.appendChild(n),setTimeout(()=>{document.body.contains(n)&&document.body.removeChild(n)},5e3)}chrome.runtime.onMessage.addListener(w);window.addEventListener("message",e=>{e.data&&e.data.type==="CYBERSAFE_AUTH_SYNC"&&e.data.source==="cybersafe-website"&&chrome.runtime.sendMessage({action:"authSync",data:e.data.data})});document.readyState==="loading"?document.addEventListener("DOMContentLoaded",c):c();

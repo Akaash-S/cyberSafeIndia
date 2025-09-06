@@ -208,7 +208,8 @@ async function handleAuthSync(authData: any) {
       await chrome.storage.local.set({
         user: authData.user,
         authToken: authData.token,
-        lastAuthSync: Date.now()
+        lastAuthSync: Date.now(),
+        authSource: 'website'
       })
 
       // Notify popup if it's open
@@ -220,20 +221,25 @@ async function handleAuthSync(authData: any) {
         // Popup not open, ignore error
       })
 
-      // Show notification
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon-48.png',
-        title: 'CyberSafe India',
-        message: `Welcome back, ${authData.user.displayName || authData.user.email}!`
-      })
+      // Show notification only if this is a new login
+      const lastSync = await chrome.storage.local.get(['lastAuthSync'])
+      const timeSinceLastSync = Date.now() - (lastSync.lastAuthSync || 0)
+      
+      if (timeSinceLastSync > 30000) { // 30 seconds
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon-48.png',
+          title: 'CyberSafe India',
+          message: `Welcome back, ${authData.user.displayName || authData.user.email}!`
+        })
+      }
 
     } else {
       // User logged out on website
       console.log('User logged out on website, syncing with extension')
       
       // Clear extension auth data
-      await chrome.storage.local.remove(['user', 'authToken'])
+      await chrome.storage.local.remove(['user', 'authToken', 'authSource'])
       
       // Notify popup if it's open
       chrome.runtime.sendMessage({

@@ -1,0 +1,252 @@
+/* CyberSafe India Extension - Content Script Styles */
+
+.cybersafe-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  max-width: 300px;
+  animation: slideIn 0.3s ease;
+}
+
+.cybersafe-indicator.safe {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.cybersafe-indicator.suspicious {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.cybersafe-indicator.malicious {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.cybersafe-indicator .icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.cybersafe-indicator .text {
+  display: inline-block;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+.cybersafe-indicator .close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: #6b7280;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cybersafe-indicator .close:hover {
+  color: #374151;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.cybersafe-warning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #fef2f2;
+  border-bottom: 2px solid #ef4444;
+  padding: 12px 20px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.cybersafe-warning .close {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #dc2626;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cybersafe-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #22c55e;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2147483647;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  text-align: center;
+}
+
+.cybersafe-notification.error {
+  background: #ef4444;
+}
+
+.cybersafe-notification.warning {
+  background: #f59e0b;
+}
+
+.cybersafe-link-protection {
+  position: relative;
+  display: inline-block;
+}
+
+.cybersafe-link-protection::after {
+  content: '🛡️';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.cybersafe-suspicious-link {
+  border-bottom: 1px dashed #f59e0b !important;
+  position: relative;
+}
+
+.cybersafe-suspicious-link::before {
+  content: '⚠️';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 10px;
+  background: #f59e0b;
+  color: white;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cybersafe-malicious-link {
+  border-bottom: 1px dashed #ef4444 !important;
+  position: relative;
+}
+
+.cybersafe-malicious-link::before {
+  content: '🚫';
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 10px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .cybersafe-indicator {
+    background: #1f2937;
+    border-color: #374151;
+    color: #f9fafb;
+  }
+  
+  .cybersafe-indicator.safe {
+    border-color: #10b981;
+    background: #064e3b;
+  }
+  
+  .cybersafe-indicator.suspicious {
+    border-color: #f59e0b;
+    background: #78350f;
+  }
+  
+  .cybersafe-indicator.malicious {
+    border-color: #ef4444;
+    background: #7f1d1d;
+  }
+  
+  .cybersafe-warning {
+    background: #7f1d1d;
+    border-bottom-color: #ef4444;
+    color: #fecaca;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .cybersafe-indicator {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    font-size: 13px;
+  }
+  
+  .cybersafe-warning {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  
+  .cybersafe-notification {
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+  }
+}

@@ -40,17 +40,26 @@ export default defineConfig({
             return '[name].[ext]'
           }
           if (assetInfo.name?.endsWith('.css')) {
-            return 'assets/[name]-[hash].[ext]'
+            return '[name].[ext]'
           }
           return 'assets/[name]-[hash].[ext]'
         }
       }
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    // Ensure proper module format for extension
+    target: 'esnext',
+    minify: 'esbuild',
+    esbuild: {
+      drop: ['console', 'debugger']
+    }
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
     }
+  },
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production')
   }
 })
