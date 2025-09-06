@@ -64,7 +64,7 @@ The extension files will be in the `dist-extension` directory.
 ### Environment Variables
 Create a `.env` file in the root directory:
 ```
-VITE_API_BASE_URL=http://localhost:3000/api
+VITE_API_BASE_URL=https://cybersafeindiabackend-1.onrender.com/api
 VITE_FIREBASE_API_KEY=your-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id

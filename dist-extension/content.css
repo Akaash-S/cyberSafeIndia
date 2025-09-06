@@ -1,0 +1,116 @@
+/* CyberSafe India Extension - Content Styles */
+
+/* Security Indicator */
+#cybersafe-indicator {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* External Link Icons */
+.cybersafe-external-icon {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: normal !important;
+  line-height: 1 !important;
+}
+
+/* Warning Modals */
+.cybersafe-warning-modal {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.cybersafe-warning-modal h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+  line-height: 1.2 !important;
+}
+
+.cybersafe-warning-modal p {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+}
+
+.cybersafe-warning-modal button {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+/* Notifications */
+.cybersafe-notification {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+}
+
+/* Ensure proper z-index stacking */
+#cybersafe-indicator,
+.cybersafe-warning-modal,
+.cybersafe-notification {
+  z-index: 2147483647 !important;
+}
+
+/* Smooth transitions */
+#cybersafe-indicator,
+.cybersafe-external-icon {
+  transition: all 0.3s ease !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  #cybersafe-indicator {
+    top: 10px !important;
+    right: 10px !important;
+    left: 10px !important;
+    max-width: none !important;
+    font-size: 12px !important;
+    padding: 10px 12px !important;
+  }
+  
+  .cybersafe-warning-modal .modal-content {
+    margin: 20px !important;
+    max-width: calc(100% - 40px) !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .cybersafe-warning-modal {
+    background: #1f2937 !important;
+    color: #f9fafb !important;
+  }
+  
+  .cybersafe-warning-modal .url-display {
+    background: #374151 !important;
+    color: #d1d5db !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  #cybersafe-indicator {
+    border: 2px solid currentColor !important;
+  }
+  
+  .cybersafe-external-icon {
+    border: 1px solid currentColor !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  #cybersafe-indicator,
+  .cybersafe-external-icon,
+  .cybersafe-warning-modal,
+  .cybersafe-notification {
+    transition: none !important;
+    animation: none !important;
+  }
+}

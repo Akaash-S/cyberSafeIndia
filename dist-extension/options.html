@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSafe India - Extension Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1f2937;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #6b7280;
+    }
+
+    .settings-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1f2937;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+
+    .setting-info {
+      flex: 1;
+    }
+
+    .setting-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .setting-description {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 24px;
+      background: #d1d5db;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toggle.active {
+      background: #22c55e;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+
+    .toggle.active::after {
+      transform: translateX(24px);
+    }
+
+    .select {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: white;
+      font-size: 14px;
+      min-width: 120px;
+    }
+
+    .button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .button-primary {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .button-primary:hover {
+      background: #2563eb;
+    }
+
+    .button-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .button-secondary:hover {
+      background: #4b5563;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .stat-card {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #3b82f6;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e7eb;
+      color: #6b7280;
+    }
+
+    .footer a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-connected {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-disconnected {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px 16px;
+      }
+
+      .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🛡️</div>
+      <h1>CyberSafe India</h1>
+      <p class="subtitle">Extension Settings & Configuration</p>
+    </div>
+
+    <!-- Security Settings -->
+    <div class="settings-section">
+      <h2 class="section-title">Security Settings</h2>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Auto-scan Pages</div>
+          <div class="setting-description">Automatically scan every page you visit for threats</div>
+        </div>
+        <div class="toggle" id="autoScanToggle"></div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Block Malicious URLs</div>
+          <div class="setting-description">Automatically block access to detected malicious websites</div>
+        </div>
+        <div class="toggle" id="blockMaliciousToggle"></div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Show Warnings</div>
+          <div class="setting-description">Display warnings for suspicious URLs before visiting</div>
+        </div>
+        <div class="toggle" id="showWarningsToggle"></div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Notifications</div>
+          <div class="setting-description">Show desktop notifications for security alerts</div>
+        </div>
+        <div class="toggle" id="notificationsToggle"></div>
+      </div>
+    </div>
+
+    <!-- Display Settings -->
+    <div class="settings-section">
+      <h2 class="section-title">Display Settings</h2>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Theme</div>
+          <div class="setting-description">Choose your preferred color theme</div>
+        </div>
+        <select class="select" id="themeSelect">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+          <option value="auto">Auto</option>
+        </select>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Security Indicator Position</div>
+          <div class="setting-description">Position of the security status indicator on pages</div>
+        </div>
+        <select class="select" id="indicatorPositionSelect">
+          <option value="top-right">Top Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="bottom-right">Bottom Right</option>
+          <option value="bottom-left">Bottom Left</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="settings-section">
+      <h2 class="section-title">Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalScans">0</div>
+          <div class="stat-label">Total Scans</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="safeScans">0</div>
+          <div class="stat-label">Safe URLs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="threatScans">0</div>
+          <div class="stat-label">Threats Blocked</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="extensionUptime">0</div>
+          <div class="stat-label">Days Protected</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account Settings -->
+    <div class="settings-section">
+      <h2 class="section-title">Account</h2>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Connection Status</div>
+          <div class="setting-description">Status of your CyberSafe India account connection</div>
+        </div>
+        <div class="status-indicator" id="connectionStatus">
+          <span>●</span>
+          <span>Checking...</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Account Actions</div>
+          <div class="setting-description">Manage your CyberSafe India account</div>
+        </div>
+        <div>
+          <button class="button button-primary" id="signInButton">Sign In</button>
+          <button class="button button-secondary" id="signOutButton" style="display: none;">Sign Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="settings-section">
+      <h2 class="section-title">Actions</h2>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Reset Statistics</div>
+          <div class="setting-description">Clear all scan statistics and reset counters</div>
+        </div>
+        <button class="button button-secondary" id="resetStatsButton">Reset</button>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Export Data</div>
+          <div class="setting-description">Export your scan history and settings</div>
+        </div>
+        <button class="button button-secondary" id="exportDataButton">Export</button>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">Open Dashboard</div>
+          <div class="setting-description">Open the full CyberSafe India dashboard</div>
+        </div>
+        <button class="button button-primary" id="openDashboardButton">Open</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>
+        <a href="https://cybersafe-india.vercel.app" target="_blank">CyberSafe India</a> | 
+        <a href="https://cybersafe-india.vercel.app/privacy" target="_blank">Privacy Policy</a> | 
+        <a href="https://cybersafe-india.vercel.app/help" target="_blank">Help Center</a>
+      </p>
+      <p style="margin-top: 8px; font-size: 12px;">
+        Version 1.0.0 | Last updated: <span id="lastUpdated"></span>
+      </p>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
