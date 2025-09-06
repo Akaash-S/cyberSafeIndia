@@ -5,34 +5,70 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { auth, googleProvider } from '../../firebase';
 import { Chrome } from 'lucide-react';
+import api from '../../services/api';
 
 const AuthPage: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [showEmailVerificationMessage, setShowEmailVerificationMessage] = React.useState(false);
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
+
+  const handleBackendLogin = React.useCallback(async (idToken: string) => {
+    try {
+      const response = await api.post('/user/login', { idToken });
+      const responseData = response.data as { success: boolean; data?: { emailVerified: boolean }; error?: string };
+      if (responseData.success) {
+        if (responseData.data?.emailVerified) {
+          console.log('Backend login successful and email verified.');
+          refreshUser(); // Refresh user context to get updated status
+          navigate('/', { replace: true });
+        } else {
+          console.log('Backend login successful, email verification pending.');
+          setShowEmailVerificationMessage(true);
+          // Optionally navigate to a specific page for email verification pending
+          navigate('/email-pending', { replace: true });
+        }
+      } else {
+        setError(responseData.error || 'An unknown error occurred during backend login.');
+      }
+    } catch (err: unknown) {
+      console.error('Error sending ID token to backend:', err);
+      const errorMessage = err && typeof err === 'object' && 'response' in err && 
+        err.response && typeof err.response === 'object' && 'data' in err.response &&
+        err.response.data && typeof err.response.data === 'object' && 'error' in err.response.data &&
+        typeof err.response.data.error === 'string' 
+        ? err.response.data.error 
+        : 'Failed to connect to backend.';
+      setError(errorMessage);
+    }
+  }, [navigate, refreshUser]);
 
   // Check for redirect result on component mount
   React.useEffect(() => {
     const checkRedirectResult = async () => {
       try {
         const result = await getRedirectResult(auth);
-        if (result) {
+        if (result && result.user) {
           console.log('Redirect authentication successful:', result.user.email);
-          navigate('/', { replace: true });
+          const idToken = await result.user.getIdToken();
+          await handleBackendLogin(idToken);
         }
       } catch (error) {
         console.error('Redirect authentication error:', error);
+        setError('Authentication failed. Please try again.');
       }
     };
 
     checkRedirectResult();
-  }, [navigate]);
+  }, [navigate, handleBackendLogin]);
 
   // Redirect authenticated users to home page
   React.useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && user.emailVerified) {
       navigate('/', { replace: true });
+    } else if (!authLoading && user && !user.emailVerified) {
+      setShowEmailVerificationMessage(true);
     }
   }, [user, authLoading, navigate]);
 
@@ -56,30 +92,24 @@ const AuthPage: React.FC = () => {
   const handleGoogleAuth = async () => {
     setLoading(true);
     setError('');
+    setShowEmailVerificationMessage(false);
 
     try {
-      // Try popup first, fallback to redirect if popup fails
       const result = await signInWithPopup(auth, googleProvider);
-      
-      // Verify the popup was closed properly
       if (result.user) {
         console.log('Authentication successful:', result.user.email);
-        // Redirect to home page after successful authentication
-        navigate('/', { replace: true });
+        const idToken = await result.user.getIdToken();
+        await handleBackendLogin(idToken);
       }
     } catch (error: unknown) {
       console.error('Popup authentication error:', error);
-      
-      // Handle specific Firebase auth errors
       if (error instanceof Error) {
         if (error.message.includes('popup-closed-by-user')) {
           setError('Sign-in was cancelled. Please try again.');
         } else if (error.message.includes('popup-blocked') || error.message.includes('popup-closed')) {
-          // Fallback to redirect authentication
           try {
             setError('Popup blocked. Redirecting to Google sign-in...');
             await signInWithRedirect(auth, googleProvider);
-            // The redirect will handle the rest
             return;
           } catch (redirectError) {
             console.error('Redirect authentication error:', redirectError);
@@ -190,9 +220,19 @@ const AuthPage: React.FC = () => {
               </motion.div>
             )}
 
+            {showEmailVerificationMessage && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-info-100 border border-info-200 text-info-800 px-4 py-3 rounded-lg mb-4"
+              >
+                A verification email has been sent to your email address. Please check your inbox and spam folder to complete your login.
+              </motion.div>
+            )}
+
             <motion.button
               onClick={handleGoogleAuth}
-              disabled={loading}
+              disabled={loading || showEmailVerificationMessage}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"

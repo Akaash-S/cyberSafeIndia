@@ -5,6 +5,50 @@ import { useAuth } from '../../hooks/useAuth';
 import apiService from '../../services/api';
 import type { ScanResult, ScanHistory } from '../../types/api';
 import { exportScanHistoryToExcel, type ScanHistoryExport } from '../../utils/excelExport';
+import toast from 'react-hot-toast';
+
+// Type definitions for API response data
+interface VirusTotalData {
+  data?: {
+    attributes?: {
+      last_analysis_stats?: {
+        malicious?: number;
+      };
+      last_analysis_results?: Record<string, unknown>;
+    };
+  };
+}
+
+interface AbuseIPDBData {
+  data?: {
+    abuseConfidencePercentage?: number;
+    countryCode?: string;
+    totalReports?: number;
+  };
+}
+
+interface CommunityData {
+  source?: string;
+  reputation?: string;
+  threatType?: string;
+  severity?: string;
+  reportCount?: number;
+}
+
+interface ScanDetails {
+  virustotal?: VirusTotalData;
+  abuseipdb?: AbuseIPDBData;
+  community?: CommunityData;
+}
+
+interface ScanResponseData {
+  url?: string;
+  status?: string;
+  confidence?: number;
+  details?: ScanDetails;
+  scanDate?: string;
+  cached?: boolean;
+}
 
 // Scan stage interface
 interface ScanStage {
@@ -162,17 +206,18 @@ const ScanURL: React.FC = () => {
       
       if (response.success && response.data) {
         // Ensure the result has the proper structure
+        const responseData = response.data as ScanResponseData;
         const scanResult: ScanResult = {
-          url: (response.data as any).url || url,
-          status: (response.data as any).status || 'unknown',
-          confidence: (response.data as any).confidence || 0,
+          url: responseData.url || url,
+          status: (responseData.status as 'safe' | 'suspicious' | 'malicious' | 'unknown') || 'unknown',
+          confidence: responseData.confidence || 0,
           details: {
-            virustotal: (response.data as any).details?.virustotal || {},
-            abuseipdb: (response.data as any).details?.abuseipdb || {},
-            community: (response.data as any).details?.community || {}
+            virustotal: responseData.details?.virustotal as Record<string, unknown> || {},
+            abuseipdb: responseData.details?.abuseipdb as Record<string, unknown> || {},
+            community: responseData.details?.community || {}
           },
-          scanDate: (response.data as any).scanDate || new Date().toISOString(),
-          cached: (response.data as any).cached || false
+          scanDate: responseData.scanDate || new Date().toISOString(),
+          cached: responseData.cached || false
         };
         setResult(scanResult);
         updateStageStatus('analysis', 'completed', 500);
@@ -289,41 +334,25 @@ const ScanURL: React.FC = () => {
 
     setReporting(true);
     try {
-      // Report as threat using the reputation API
-      const response = await fetch('http://localhost:5000/api/reputation/report-threat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${btoa(JSON.stringify({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-            admin: false
-          }))}`
-        },
-        body: JSON.stringify({
-          url: result.url,
-          threatType: threatType,
-          severity: severity
-        })
+      const response = await apiService.reportThreat(user, {
+        url: result.url,
+        threatType,
+        severity,
+        comment: reportReason,
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
+      if (response.success) {
+        toast.success('Threat report submitted successfully! Thank you for helping keep the community safe.');
         setShowReportModal(false);
         setReportReason('');
         setThreatType('');
         setSeverity('medium');
-        // Show success message
-        alert('Threat report submitted successfully! Thank you for helping keep the community safe.');
       } else {
-        alert('Failed to submit threat report. Please try again.');
+        toast.error(response.error || 'Failed to submit threat report. Please try again.');
       }
     } catch (error) {
       console.error('Report error:', error);
-      alert('An error occurred while submitting the threat report.');
+      toast.error('An error occurred while submitting the threat report.');
     } finally {
       setReporting(false);
     }

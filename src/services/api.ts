@@ -1,7 +1,6 @@
 // Simple API service - clean and straightforward
 import type { 
   ApiResponse, 
-  User, 
   AnalyticsOverview,
   AnalyticsTrends,
   ReputationData,
@@ -10,23 +9,12 @@ import type {
   UserProfile,
   NotificationSettings
 } from '../types/api';
+import type { User } from 'firebase/auth';
 import { requestLimiter } from '../utils/throttle';
+import { createAuthHeader } from '../utils/authUtils';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://cybersafeindiabackend-1.onrender.com/api';
 
-// Helper function to create auth header
-const createAuthHeader = (user: User): string => {
-  const userData = {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    admin: false
-  };
-  
-  const encodedData = btoa(JSON.stringify(userData));
-  return `Bearer ${encodedData}`;
-};
 
 // Helper function to make API calls with error handling and rate limiting
 const makeApiCall = async (
@@ -413,6 +401,53 @@ class ApiService {
       user,
       'profile'
     );
+  }
+
+  // Report threat
+  async reportThreat(user: User, data: {
+    url: string;
+    threatType: string;
+    severity: string;
+    comment: string;
+  }): Promise<ApiResponse> {
+    return makeApiCall(
+      `${API_BASE_URL}/reputation/report-threat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': createAuthHeader(user)
+        },
+        body: JSON.stringify(data)
+      },
+      user,
+      'report-threat'
+    );
+  }
+
+  // Generic GET method
+  async get(url: string, options: { headers?: Record<string, string> } = {}): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+    return await response.json();
+  }
+
+  // Generic POST method
+  async post(url: string, data: unknown, options: { headers?: Record<string, string> } = {}): Promise<ApiResponse> {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      },
+      body: JSON.stringify(data)
+    });
+    return await response.json();
   }
 }
 
