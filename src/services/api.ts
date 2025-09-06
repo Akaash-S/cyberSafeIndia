@@ -12,7 +12,7 @@ import type {
 } from '../types/api';
 import { requestLimiter } from '../utils/throttle';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper function to create auth header
 const createAuthHeader = (user: User): string => {

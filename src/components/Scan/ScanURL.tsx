@@ -551,7 +551,7 @@ const ScanURL: React.FC = () => {
                   className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                   title="Open URL in browser"
                 >
-                  <Eye className="w-5 h-5" />
+                  <ExternalLink className="w-5 h-5" />
                 </motion.button>
                 <motion.button
                   onClick={() => setShowReportModal(true)}

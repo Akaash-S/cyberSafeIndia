@@ -46,7 +46,7 @@ export const registerUserWithBackend = async (firebaseUser: User): Promise<Backe
     // Log the full request payload for debugging
     console.log('Registering user with backend');
 
-    const response = await fetch('http://localhost:5000/api/user/register', {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

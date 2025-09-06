@@ -1204,7 +1204,7 @@ const Profile: React.FC = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              {/* <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Key className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                   <div>
@@ -1214,7 +1214,7 @@ const Profile: React.FC = () => {
                     </p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="flex items-center space-x-3">

@@ -62,7 +62,7 @@ const Navbar: React.FC = () => {
               <Shield className="w-5 h-5 text-white" />
             </motion.div>
             <span className="text-xl font-bold text-gray-900 dark:text-white">
-              CyberSafe India
+              CyberSafe INDIA
             </span>
           </Link>
 

@@ -98,9 +98,9 @@ const Home: React.FC = () => {
               className="mb-8"
             >
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-                CyberSafe{' '}
+                cybersafe{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-primary-800">
-                  India
+                  INDIA
                 </span>
               </h1>
               <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-8">
@@ -211,7 +211,7 @@ const Home: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Why Choose CyberSafe India?
+              Why Choose cybersafe INDIA?
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
               Our comprehensive security platform provides multi-layered protection 
@@ -363,7 +363,7 @@ const Home: React.FC = () => {
               Ready to Secure Your Digital Journey?
             </h2>
             <p className="text-xl text-primary-100 mb-8 max-w-3xl mx-auto">
-              Join thousands of users who trust CyberSafe India for their cybersecurity needs. 
+              Join thousands of users who trust cybersafe INDIA for their cybersecurity needs. 
               Start scanning URLs and protecting yourself today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
