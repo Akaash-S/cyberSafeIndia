@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:extension": "npm run build:extension:clean && npm run build:extension:copy && npm run build:extension:icons",
+    "build:extension": "npm run build:extension:clean && npm run build:extension:bundle && npm run build:extension:copy",
     "build:extension:clean": "rimraf dist-extension",
-    "build:extension:copy": "tsc -b && vite build --outDir dist-extension && cp -r public/* dist-extension/",
-    "build:extension:icons": "node dist-extension/scripts/create-icons.js",
+    "build:extension:bundle": "tsc -b && vite build --config vite.extension.config.ts",
+    "build:extension:copy": "cp -r public/icons dist-extension/ && cp src/extension/manifest.json dist-extension/",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
+    "@types/chrome": "^0.1.6",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
