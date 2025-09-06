@@ -1,10 +1,10 @@
 // Chrome Extension Types
 declare namespace chrome {
   namespace runtime {
-    function onInstalled: {
+    const onInstalled: {
       addListener(callback: (details: { reason: string }) => void): void
     }
-    function onMessage: {
+    const onMessage: {
       addListener(callback: (request: any, sender: any, sendResponse: (response?: any) => void) => boolean | void): void
     }
     function sendMessage(message: any): Promise<any>
@@ -27,7 +27,7 @@ declare namespace chrome {
     function create(createProperties: { url: string }): Promise<any>
     function query(queryInfo: { active?: boolean; currentWindow?: boolean }): Promise<any[]>
     function sendMessage(tabId: number, message: any): Promise<any>
-    function onUpdated: {
+    const onUpdated: {
       addListener(callback: (tabId: number, changeInfo: any, tab: any) => void): void
     }
   }
